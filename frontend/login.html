@@ -2,180 +2,524 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - PetCare Plus</title>
-    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>PetCare Plus - Autenticação</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Open Sans', sans-serif; }
+        :root {
+            --primary: #14B8A6;
+            --primary-dark: #0F766E;
+            --primary-light: #CCFBF1;
+            --surface: #FFFFFF;
+            --background: #F8FAFC;
+            --text-main: #0F172A;
+            --text-muted: #64748B;
+            --border: #E2E8F0;
+            --error: #EF4444;
+            --success: #10B981;
+            --ring: rgba(20, 184, 166, 0.25);
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            --radius-md: 12px;
+            --radius-lg: 24px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', system-ui, sans-serif;
+        }
+
         body {
-            background: linear-gradient(135deg, #F0F9FF 0%, #E0F2FE 100%);
+            background-color: var(--background);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+
+        /* Layout Dividido Moderno */
+        .auth-wrapper {
+            display: flex;
+            background: var(--surface);
+            width: 100%;
+            max-width: 1000px;
+            min-height: 600px;
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-lg);
+            overflow: hidden;
+            animation: fadeScaleIn 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes fadeScaleIn {
+            from { opacity: 0; transform: scale(0.98) translateY(10px); }
+            to { opacity: 1; transform: scale(1) translateY(0); }
+        }
+
+        /* Lado da Imagem (Branding) */
+        .auth-brand {
+            flex: 1;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            padding: 3rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            color: white;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .auth-brand::after {
+            content: '';
+            position: absolute;
+            bottom: -50px;
+            right: -50px;
+            width: 300px;
+            height: 300px;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+            border-radius: 50%;
+        }
+
+        .brand-logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 1.5rem;
+            font-weight: 800;
+            z-index: 1;
+        }
+
+        .brand-content {
+            z-index: 1;
+        }
+
+        .brand-content h2 {
+            font-size: 2.5rem;
+            font-weight: 800;
+            line-height: 1.2;
+            margin-bottom: 1rem;
+        }
+
+        .brand-content p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+            line-height: 1.6;
+        }
+
+        /* Lado do Formulário */
+        .auth-form-container {
+            flex: 1;
+            padding: 3rem 4rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            max-width: 500px;
+            margin: 0 auto;
+        }
+
+        .form-header {
+            margin-bottom: 2rem;
+        }
+
+        .form-header h1 {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--text-main);
+            margin-bottom: 0.5rem;
+            transition: 0.3s;
+        }
+
+        .form-header p {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+        }
+
+        /* Inputs Premium */
+        .form-group {
+            margin-bottom: 1.25rem;
+            position: relative;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: var(--text-main);
+        }
+
+        .input-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .input-icon {
+            position: absolute;
+            left: 14px;
+            color: var(--text-muted);
+            width: 20px;
+            height: 20px;
+            transition: color 0.3s;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 14px 14px 14px 42px;
+            background-color: var(--background);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            font-size: 1rem;
+            color: var(--text-main);
+            transition: all 0.2s ease;
+        }
+
+        select.form-control {
+            appearance: none;
+            cursor: pointer;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 4px var(--ring);
+            background-color: var(--surface);
+        }
+
+        .form-control:focus + .input-icon, 
+        .form-control:not(:placeholder-shown) + .input-icon {
+            color: var(--primary);
+        }
+
+        /* Botão Interativo com Loading */
+        .btn-primary {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            border: none;
+            border-radius: var(--radius-md);
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(20, 184, 166, 0.3);
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh;
-            color: #334155;
+            gap: 8px;
+            margin-top: 1rem;
         }
-        .login-container {
-            background: white;
-            padding: 40px;
-            border-radius: 16px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
-            width: 100%;
-            max-width: 400px;
+
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(20, 184, 166, 0.4);
+        }
+
+        .btn-primary:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .spinner {
+            display: none;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Links e Alternância de Modo */
+        .auth-footer {
+            margin-top: 2rem;
             text-align: center;
-            animation: slideUp 0.5s ease-out;
+            font-size: 0.95rem;
+            color: var(--text-muted);
         }
-        @keyframes slideUp {
-            from { opacity: 0; transform: translateY(30px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        .login-container img { width: 80px; margin-bottom: 20px; }
-        h1 { font-size: 1.5rem; margin-bottom: 10px; color: #0F766E; }
-        p.subtitle { color: #64748B; margin-bottom: 30px; font-size: 0.9rem; }
-        
-        .form-group { margin-bottom: 20px; text-align: left; }
-        .form-group label { display: block; margin-bottom: 8px; font-weight: 600; font-size: 0.9rem; }
-        .form-group input {
-            width: 100%; padding: 12px; border: 1px solid #CBD5E1; border-radius: 8px; font-size: 1rem;
-            transition: border-color 0.3s;
-        }
-        .form-group input:focus { outline: none; border-color: #14B8A6; box-shadow: 0 0 0 3px rgba(20,184,166,0.2); }
-        
-        .btn-primary {
-            width: 100%; padding: 14px; background: #14B8A6; color: white; border: none; border-radius: 8px;
-            font-size: 1rem; font-weight: 600; cursor: pointer; transition: 0.3s;
-        }
-        .btn-primary:hover { background: #0F766E; }
-        
+
         .toggle-link {
-            margin-top: 20px; display: block; color: #14B8A6; cursor: pointer; text-decoration: none; font-weight: 600;
+            color: var(--primary-dark);
+            cursor: pointer;
+            text-decoration: none;
+            font-weight: 600;
+            transition: color 0.2s;
+            background: transparent;
+            border: none;
+            padding: 0;
+            font-size: inherit;
         }
-        .toggle-link:hover { text-decoration: underline; }
+
+        .toggle-link:hover {
+            color: var(--primary);
+            text-decoration: underline;
+        }
+
+        /* Animação dos campos de registro */
+        #register-fields {
+            display: none;
+            opacity: 0;
+            transform: translateY(-10px);
+            transition: all 0.3s ease;
+        }
         
-        /* Oculta os campos de registro inicialmente */
-        #register-fields { display: none; }
+        #register-fields.show {
+            display: block;
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Sistema de Notificação (Toast) Substituindo o Alert */
+        .toast-container {
+            position: fixed;
+            top: 24px;
+            right: 24px;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .toast {
+            background: white;
+            color: var(--text-main);
+            padding: 16px 24px;
+            border-radius: 12px;
+            box-shadow: var(--shadow-lg);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-left: 4px solid var(--primary);
+            font-weight: 500;
+            transform: translateX(120%);
+            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .toast.error { border-left-color: var(--error); }
+        .toast.success { border-left-color: var(--success); }
+        .toast.visible { transform: translateX(0); }
+
+        /* Responsividade */
+        @media (max-width: 860px) {
+            .auth-wrapper { flex-direction: column; min-height: auto; max-width: 450px; }
+            .auth-brand { padding: 2rem; }
+            .brand-content h2 { font-size: 1.8rem; }
+            .auth-form-container { padding: 2.5rem 2rem; }
+        }
     </style>
 </head>
 <body>
 
-    <div class="login-container">
-        <svg xmlns="http://www.w3.org/2000/svg" width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="#14B8A6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom: 10px;"><path d="M12 2C7.58 2 4 5.58 4 10c0 4.42 8 12 8 12s8-7.58 8-12c0-4.42-3.58-8-8-8z"/><path d="M12 12a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/></svg>
-        
-        <h1 id="form-title">Acessar PetCare Plus</h1>
-        <p class="subtitle" id="form-subtitle">Gerencie a saúde do seu melhor amigo.</p>
+    <div class="toast-container" id="toast-container"></div>
 
-        <form id="auth-form">
-            <div id="register-fields">
-                <div class="form-group">
-                    <label for="nome">Nome Completo</label>
-                    <input type="text" id="nome" placeholder="Seu nome">
+    <div class="auth-wrapper">
+        <div class="auth-brand">
+            <div class="brand-logo">
+                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2C7.58 2 4 5.58 4 10c0 4.42 8 12 8 12s8-7.58 8-12c0-4.42-3.58-8-8-8z"/><path d="M12 12a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/></svg>
+                PetCare Plus
+            </div>
+            <div class="brand-content">
+                <h2>A saúde do seu melhor amigo em boas mãos.</h2>
+                <p>Acesse o portal para gerenciar carteirinhas de vacinação, agendar consultas e manter o histórico médico sempre atualizado.</p>
+            </div>
+        </div>
+
+        <div class="auth-form-container">
+            <div class="form-header">
+                <h1 id="form-title">Acessar Conta</h1>
+                <p id="form-subtitle">Insira suas credenciais para entrar na plataforma.</p>
+            </div>
+
+            <form id="auth-form" novalidate>
+                <div id="register-fields">
+                    <div class="form-group">
+                        <label for="nome">Nome Completo</label>
+                        <div class="input-wrapper">
+                            <input type="text" id="nome" class="form-control" placeholder="Ex: João da Silva">
+                            <svg class="input-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="tipo">Perfil de Acesso</label>
+                        <div class="input-wrapper">
+                            <select id="tipo" class="form-control">
+                                <option value="tutor">Tutor (Dono de Pet)</option>
+                                <option value="veterinario">Veterinário(a) / Clínica</option>
+                            </select>
+                            <svg class="input-icon" style="z-index: 1;" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                        </div>
+                    </div>
                 </div>
+
                 <div class="form-group">
-                    <label for="tipo">Eu sou um(a)...</label>
-                    <select id="tipo" style="width: 100%; padding: 12px; border: 1px solid #CBD5E1; border-radius: 8px; font-size: 1rem;">
-                        <option value="tutor">Tutor de Pet</option>
-                        <option value="veterinario">Veterinário(a)</option>
-                    </select>
+                    <label for="email">E-mail</label>
+                    <div class="input-wrapper">
+                        <input type="email" id="email" class="form-control" placeholder="seu@email.com" required>
+                        <svg class="input-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                    </div>
                 </div>
-            </div>
+                
+                <div class="form-group">
+                    <label for="senha">Senha</label>
+                    <div class="input-wrapper">
+                        <input type="password" id="senha" class="form-control" placeholder="••••••••" required>
+                        <svg class="input-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                    </div>
+                </div>
 
-            <div class="form-group">
-                <label for="email">E-mail</label>
-                <input type="email" id="email" placeholder="seu@email.com" required>
-            </div>
-            
-            <div class="form-group">
-                <label for="senha">Senha</label>
-                <input type="password" id="senha" placeholder="••••••••" required>
-            </div>
+                <button type="submit" class="btn-primary" id="submit-btn">
+                    <span id="btn-text">Entrar na Plataforma</span>
+                    <div class="spinner" id="btn-spinner"></div>
+                </button>
+            </form>
 
-            <button type="submit" class="btn-primary" id="submit-btn">Entrar</button>
-        </form>
-
-        <a class="toggle-link" id="toggle-btn" onclick="toggleMode()">Ainda não tem conta? Cadastre-se</a>
+            <div class="auth-footer">
+                <span id="footer-text">Ainda não tem conta?</span> 
+                <button type="button" class="toggle-link" id="toggle-btn" onclick="toggleMode()">Cadastre-se grátis</button>
+            </div>
+        </div>
     </div>
 
     <script>
+        // Redireciona se já estiver logado
         if (localStorage.getItem('petcareplus_user_id')) {
             window.location.replace('index.html');
         }
 
-        let isLogin = true;
         const API_URL = 'https://petcare-api-backend.onrender.com';
+        let isLogin = true;
 
+        // UI Elements
+        const formTitle = document.getElementById('form-title');
+        const formSubtitle = document.getElementById('form-subtitle');
+        const submitBtnText = document.getElementById('btn-text');
+        const toggleBtn = document.getElementById('toggle-btn');
+        const footerText = document.getElementById('footer-text');
+        const registerFields = document.getElementById('register-fields');
+        const nomeInput = document.getElementById('nome');
+        const btnSpinner = document.getElementById('btn-spinner');
+        const submitBtn = document.getElementById('submit-btn');
+
+        // Sistema de Toast
+        function showToast(message, type = 'error') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            
+            const icon = type === 'success' 
+                ? '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>'
+                : '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>';
+            
+            toast.innerHTML = `${icon} <span>${message}</span>`;
+            container.appendChild(toast);
+
+            // Animate in
+            requestAnimationFrame(() => toast.classList.add('visible'));
+
+            // Remove after 4 seconds
+            setTimeout(() => {
+                toast.classList.remove('visible');
+                setTimeout(() => toast.remove(), 300);
+            }, 4000);
+        }
+
+        // Alternar entre Login e Cadastro
         function toggleMode() {
             isLogin = !isLogin;
-            const title = document.getElementById('form-title');
-            const submitBtn = document.getElementById('submit-btn');
-            const toggleBtn = document.getElementById('toggle-btn');
-            const registerFields = document.getElementById('register-fields');
-            const nomeInput = document.getElementById('nome');
+            document.getElementById('auth-form').reset();
 
             if (isLogin) {
-                title.innerText = 'Acessar PetCare Plus';
-                submitBtn.innerText = 'Entrar';
-                toggleBtn.innerText = 'Ainda não tem conta? Cadastre-se';
-                registerFields.style.display = 'none';
+                formTitle.innerText = 'Acessar Conta';
+                formSubtitle.innerText = 'Insira suas credenciais para entrar na plataforma.';
+                submitBtnText.innerText = 'Entrar na Plataforma';
+                footerText.innerText = 'Ainda não tem conta?';
+                toggleBtn.innerText = 'Cadastre-se grátis';
+                
+                registerFields.classList.remove('show');
+                setTimeout(() => registerFields.style.display = 'none', 300);
                 nomeInput.required = false;
             } else {
-                title.innerText = 'Criar Conta';
-                submitBtn.innerText = 'Cadastrar';
-                toggleBtn.innerText = 'Já possui conta? Faça login';
+                formTitle.innerText = 'Criar Nova Conta';
+                formSubtitle.innerText = 'Preencha os dados abaixo para começar a usar.';
+                submitBtnText.innerText = 'Finalizar Cadastro';
+                footerText.innerText = 'Já possui conta?';
+                toggleBtn.innerText = 'Faça login aqui';
+                
                 registerFields.style.display = 'block';
+                // RequstAnimationFrame para garantir que o display:block renderizou antes da opacidade
+                requestAnimationFrame(() => registerFields.classList.add('show'));
                 nomeInput.required = true;
             }
         }
 
+        function setLoading(isLoading) {
+            submitBtn.disabled = isLoading;
+            submitBtnText.style.display = isLoading ? 'none' : 'block';
+            btnSpinner.style.display = isLoading ? 'block' : 'none';
+        }
+
+        // Submissão do Formulário
         document.getElementById('auth-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             
-            const email = document.getElementById('email').value;
+            const email = document.getElementById('email').value.trim();
             const senha = document.getElementById('senha').value;
-            const nome = document.getElementById('nome').value;
+            const nome = document.getElementById('nome').value.trim();
             const tipo = document.getElementById('tipo').value;
 
+            if (!email || !senha || (!isLogin && !nome)) {
+                showToast('Por favor, preencha todos os campos obrigatórios.', 'error');
+                return;
+            }
+
+            setLoading(true);
+
             try {
-                if (!isLogin) {
-                    // MODO CADASTRO
-                    const response = await fetch(`${API_URL}/usuarios/`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ nome, email, senha, tipo })
-                    });
+                const endpoint = isLogin ? '/login/' : '/usuarios/';
+                const payload = isLogin ? { email, senha } : { nome, email, senha, tipo };
 
-                    if (response.ok) {
-                        const data = await response.json();
-                        localStorage.setItem('petcareplus_user_id', data.id);
-                        localStorage.setItem('petcareplus_user_tipo', data.tipo);
-                        localStorage.setItem('petcareplus_visited', 'true'); // Pula a tela de "Bem-vindo"
-                        
-                        // O 'replace' não deixa a tela de login salva no histórico da seta
+                const response = await fetch(`${API_URL}${endpoint}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    localStorage.setItem('petcareplus_user_id', data.id);
+                    localStorage.setItem('petcareplus_user_tipo', data.tipo);
+                    localStorage.setItem('petcareplus_visited', 'true');
+                    
+                    showToast('Autenticação realizada com sucesso! Redirecionando...', 'success');
+                    
+                    setTimeout(() => {
                         window.location.replace('index.html'); 
-                    } else {
-                        alert('Erro ao criar conta: Verifique os dados ou e-mail já existente.');
-                    }
+                    }, 800);
                 } else {
-                    // MODO LOGIN REAL
-                    const response = await fetch(`${API_URL}/login/`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ email, senha })
-                    });
-
-                    if (response.ok) {
-                        const data = await response.json();
-                        localStorage.setItem('petcareplus_user_id', data.id);
-                        localStorage.setItem('petcareplus_user_tipo', data.tipo);
-                        localStorage.setItem('petcareplus_visited', 'true'); // Pula a tela de "Bem-vindo"
-                        
-                        window.location.replace('index.html'); 
-                    } else {
-                        alert('E-mail ou senha incorretos.');
-                    }
+                    const errorMsg = isLogin 
+                        ? 'E-mail ou senha incorretos. Tente novamente.' 
+                        : 'Este e-mail já está em uso ou os dados são inválidos.';
+                    showToast(errorMsg, 'error');
                 }
             } catch (error) {
-                alert('Erro de conexão com o Servidor Python. Verifique se a API está rodando.');
+                showToast('Falha na comunicação com o servidor. Tente novamente mais tarde.', 'error');
                 console.error(error);
+            } finally {
+                setLoading(false);
             }
         });
     </script>
