@@ -1,42 +1,104 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // --- STATE & CONSTANTS ---
-    const API_URL = 'https://petcare-api-backend.onrender.com';
+
+    // --- AUTENTICAÇÃO E INTEGRAÇÃO COM A API ---
+    const API_URL = 'https://petcare-api-backend.onrender.com';    
+    // Pega o ID e o Tipo do usuário real logado
     const loggedUserId = localStorage.getItem('petcareplus_user_id');
     const loggedUserTipo = localStorage.getItem('petcareplus_user_tipo') || 'tutor';
-    const TUTOR_ID_TESTE = parseInt(loggedUserId) || 1; // Fallback for testing UI without login
 
+    // Se não tiver ID salvo, joga para a tela de login
+    if (!loggedUserId) {
+        window.location.replace('login.html');
+        return; 
+    }
+
+    const TUTOR_ID_TESTE = parseInt(loggedUserId); 
+    let socket;
+    function connectWebSocket() {
+        if (!loggedUserId) return;
+        
+        // Transforma 'http://127.0.0.1:8000' em 'ws://127.0.0.1:8000'
+        const wsUrl = API_URL.replace('http://', 'ws://').replace('https://', 'wss://');
+        
+        // Conecta na rota que criamos no Python
+        socket = new WebSocket(`${wsUrl}/ws/${loggedUserId}`);
+
+        // O que acontece quando chega um aviso do servidor?
+        socket.onmessage = async function(event) {
+            const mensagem = event.data;
+            
+            // 1. Acende a bolinha do sininho
+            const badge = document.getElementById('notification-badge');
+            if (badge) badge.style.display = 'block';
+
+            // 2. Faz uma notificação "Flutuante" bem bonita na tela (Toast)
+            showToast(mensagem);
+
+            // 3. O SEGREDO: Recarrega os dados da API sozinho sem dar F5!
+            await loadStateFromAPI();
+            
+            // Se o usuário estiver com o perfil do pet aberto, atualiza aquela tela também
+            if (state.currentPetId && document.getElementById('pet-details-page').classList.contains('active')) {
+                renderPetDetails();
+            }
+        };
+
+        socket.onclose = function() {
+            // Se o servidor cair, tenta reconectar sozinho depois de 5 segundos
+            setTimeout(connectWebSocket, 5000); 
+        };
+    }
+
+    // Função para mostrar o aviso flutuante (Toast)
+    function showToast(msg) {
+        let container = document.getElementById('toast-container');
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'toast-container';
+            container.style.cssText = 'position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 1000; display: flex; flex-direction: column; gap: 10px;';
+            document.body.appendChild(container);
+        }
+        
+        const toast = document.createElement('div');
+        toast.style.cssText = 'background: var(--text-color); color: white; padding: 12px 24px; border-radius: 8px; box-shadow: var(--shadow-lg); font-size: 0.95rem; display: flex; align-items: center; gap: 8px; transition: opacity 0.5s;';
+        toast.innerHTML = `🔔 ${msg}`;
+        container.appendChild(toast);
+        
+        // Some sozinho depois de 5 segundos
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            setTimeout(() => toast.remove(), 500);
+        }, 5000);
+    }
+
+    // Apaga a bolinha vermelha ao clicar no sininho
+    document.getElementById('notification-btn')?.addEventListener('click', () => {
+        const badge = document.getElementById('notification-badge');
+        if (badge) badge.style.display = 'none';
+    });
+    // --- ESTADO GLOBAL DA APLICAÇÃO ---
     let state = {
         pets: [],
-        contacts: { vet: '', emergency: '' },
+        contacts: {
+            vet: '',
+            emergency: ''
+        },
         currentPetId: null,
         editingRecordId: null,
     };
-    let socket;
 
-    // --- DOM ELEMENTS ---
+    // --- SELETORES DE ELEMENTOS DOM ---
     const pages = document.querySelectorAll('.page');
     const petForm = document.getElementById('pet-form');
     const recordModal = document.getElementById('record-modal');
     const recordForm = document.getElementById('record-form');
-    const docModal = document.getElementById('doc-modal');
-    const docForm = document.getElementById('doc-form');
 
-    // --- NAVIGATION & UI HELPERS ---
+    // --- FUNÇÕES DE NAVEGAÇÃO E UTILITÁRIOS ---
     const navigateTo = (pageId) => {
         pages.forEach(page => page.classList.remove('active'));
         const targetPage = document.getElementById(pageId);
-        if(targetPage) {
-            targetPage.classList.add('active');
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-            
-            // Re-trigger animations
-            const animatedElements = targetPage.querySelectorAll('.fade-in-up, .stagger-list > *');
-            animatedElements.forEach(el => {
-                el.style.animation = 'none';
-                el.offsetHeight; /* trigger reflow */
-                el.style.animation = null; 
-            });
-        }
+        targetPage.classList.add('active');
+        document.title = `PetCare Plus - ${targetPage.querySelector('h1').textContent}`;
     };
 
     const getPetAge = (birthdate) => {
@@ -46,112 +108,87 @@ document.addEventListener('DOMContentLoaded', () => {
         let years = today.getFullYear() - birthDate.getFullYear();
         let months = today.getMonth() - birthDate.getMonth();
         if (months < 0 || (months === 0 && today.getDate() < birthDate.getDate())) {
-            years--; months += 12;
+            years--;
+            months += 12;
         }
-        return years > 0 ? `${years} ano(s) e ${months} mês(es)` : `${months} mês(es)`;
+        return `${years} ano(s) e ${months} mes(es)`;
     };
 
-    const showToast = (msg, icon = 'ph-bell-ringing') => {
-        const container = document.getElementById('toast-container');
-        const toast = document.createElement('div');
-        toast.className = 'toast-msg';
-        toast.innerHTML = `<i class="ph ${icon}"></i> <span>${msg}</span>`;
-        container.appendChild(toast);
-        setTimeout(() => toast.remove(), 5000);
-    };
-
-    window.logout = () => {
-        localStorage.removeItem('petcareplus_user_id');
-        localStorage.removeItem('petcareplus_user_tipo');
-        window.location.href = 'login.html'; // Adjust based on actual flow
-    };
-
-    // --- WEBSOCKETS ---
-    const connectWebSocket = () => {
-        if (!loggedUserId) return;
-        const wsUrl = API_URL.replace('http://', 'ws://').replace('https://', 'wss://');
-        
-        try {
-            socket = new WebSocket(`${wsUrl}/ws/${loggedUserId}`);
-            socket.onmessage = async (event) => {
-                const badge = document.getElementById('notification-badge');
-                if (badge) badge.style.display = 'block';
-                showToast(event.data);
-                
-                await loadStateFromAPI();
-                if (state.currentPetId && document.getElementById('pet-details-page').classList.contains('active')) {
-                    renderPetDetails();
-                }
-            };
-            socket.onclose = () => setTimeout(connectWebSocket, 5000);
-        } catch (e) {
-            console.warn("WebSocket não conectado (offline mode).");
-        }
-    };
-
-    document.getElementById('notification-btn')?.addEventListener('click', () => {
-        const badge = document.getElementById('notification-badge');
-        if (badge) badge.style.display = 'none';
-        showToast("Você não tem novas notificações.", "ph-bell-z");
-    });
-
-    // --- API COMMUNICATION ---
+    // --- COMUNICAÇÃO COM O BACKEND (API) ---
     const loadStateFromAPI = async () => {
         try {
-            let urlDaApi = loggedUserTipo === 'veterinario' 
-                ? `${API_URL}/pets/` 
-                : `${API_URL}/usuarios/${TUTOR_ID_TESTE}/pets/`;
+            // Define qual URL chamar dependendo de quem está logado
+            let urlDaApi = `${API_URL}/usuarios/${TUTOR_ID_TESTE}/pets/`;
+            
+            if (loggedUserTipo === 'veterinario') {
+                urlDaApi = `${API_URL}/pets/`; // Busca TODOS os pets do banco
+            }
 
             const response = await fetch(urlDaApi);
             if (response.ok) {
                 const petsDB = await response.json();
                 
+                // Mapeador auxiliar para os registros
                 const mapRecord = r => ({
-                    id: r.id, name: r.nome, date: r.data, nextDate: r.proxima_data,
-                    vet: r.anotacoes, weight: r.peso, notes: r.anotacoes
+                    id: r.id,
+                    name: r.nome,
+                    date: r.data,
+                    nextDate: r.proxima_data,
+                    vet: r.anotacoes, 
+                    weight: r.peso,
+                    notes: r.anotacoes
                 });
 
+                // Converte do padrão Python/API para o padrão do Frontend
                 state.pets = petsDB.map(p => ({
-                    id: p.id, name: p.nome, species: p.especie, breed: p.raca,
-                    microchip: p.microchip, birthdate: p.data_nascimento, sex: p.sexo, photo: p.foto,
+                    id: p.id,
+                    name: p.nome,
+                    species: p.especie,
+                    breed: p.raca,
+                    microchip: p.microchip,
+                    birthdate: p.data_nascimento,
+                    sex: p.sexo,
+                    photo: p.foto,
                     vaccines: p.registros.filter(r => r.tipo === 'vacina').map(mapRecord),
                     parasites: p.registros.filter(r => r.tipo === 'parasita').map(mapRecord),
                     consults: p.registros.filter(r => r.tipo === 'consulta').map(mapRecord),
                     weights: p.registros.filter(r => r.tipo === 'peso').map(mapRecord),
-                    documents: p.registros.filter(r => r.tipo === 'documento').map(mapRecord),
+                    documents: p.registros.filter(r => r.tipo === 'documento').map(mapRecord), // Mapeando doc médicos
                 }));
                 
-                loggedUserTipo === 'veterinario' ? renderVetDashboard() : renderDashboard();
+                // MUDANÇA AQUI: Escolhe qual tela desenhar com base no tipo de conta
+                if (loggedUserTipo === 'veterinario') {
+                    renderVetDashboard();
+                } else {
+                    renderDashboard();
+                }
             }
         } catch (error) {
             console.error("Erro ao carregar dados da API:", error);
-            // Fallback for UI testing if API is down
-            if (state.pets.length === 0) {
-               showToast("Trabalhando em modo offline", "ph-wifi-slash");
-            }
         }
 
+        // Carregar contatos do localStorage (Configurações Locais)
         const localContacts = localStorage.getItem('petcareplus_contacts');
         if (localContacts) state.contacts = JSON.parse(localContacts);
     };
 
-    const saveLocalContacts = () => localStorage.setItem('petcareplus_contacts', JSON.stringify(state.contacts));
+    const saveLocalContacts = () => {
+        localStorage.setItem('petcareplus_contacts', JSON.stringify(state.contacts));
+    };
 
-    // --- RENDER FUNCTIONS ---
+    // --- FUNÇÕES DE RENDERIZAÇÃO ---
+
     const renderDashboard = () => {
         renderReminders();
         const petList = document.getElementById('pet-list');
         petList.innerHTML = '';
-        
-        const countEl = document.getElementById('pet-count');
-        if(countEl) countEl.textContent = `${state.pets.length} Pet${state.pets.length !== 1 ? 's' : ''}`;
+
+        // Atualiza a contagem
+        const petCount = document.getElementById('pet-count');
+        if(petCount) petCount.textContent = `${state.pets.length} Pets`;
 
         if (state.pets.length === 0) {
-            petList.innerHTML = `
-                <div class="empty-state">
-                    <i class="ph-fill ph-ghost"></i>
-                    <p>Nenhum pet encontrado.<br>Que tal adicionar seu primeiro amigo?</p>
-                </div>`;
+            petList.innerHTML = `<div class="empty-state"><img src="assets/empty.svg" alt=""><p>Nenhum pet encontrado.</p></div>`;
             return;
         }
 
@@ -160,12 +197,11 @@ document.addEventListener('DOMContentLoaded', () => {
             card.className = 'pet-card';
             card.dataset.petId = pet.id;
             card.innerHTML = `
-                <img src="${pet.photo || 'assets/placeholder.svg'}" alt="${pet.name}" class="pet-card-photo" onerror="this.src='assets/placeholder.svg'">
+                <img src="${pet.photo || 'assets/placeholder.svg'}" alt="Foto de ${pet.name}" class="pet-card-photo">
                 <div class="pet-card-info">
                     <h3>${pet.name}</h3>
-                    <p><i class="ph ph-paw-print"></i> ${pet.species} ${pet.breed ? ` • ${pet.breed}` : ''}</p>
-                </div>
-                <i class="ph ph-caret-right text-muted" style="font-size: 1.2rem;"></i>`;
+                    <p>${pet.species} - ${pet.breed || 'SRD'}</p>
+                </div>`;
             card.addEventListener('click', () => {
                 state.currentPetId = pet.id;
                 renderPetDetails();
@@ -178,25 +214,29 @@ document.addEventListener('DOMContentLoaded', () => {
     const renderVetDashboard = () => {
         const petList = document.getElementById('vet-pet-list');
         petList.innerHTML = '';
-        const countEl = document.getElementById('vet-pet-count');
-        if(countEl) countEl.textContent = `${state.pets.length} Pacientes`;
+
+        const petCount = document.getElementById('vet-pet-count');
+        if(petCount) petCount.textContent = `${state.pets.length} Pacientes`;
 
         if (state.pets.length === 0) {
-            petList.innerHTML = `<div class="empty-state"><i class="ph-fill ph-folder-open"></i><p>Nenhum paciente cadastrado.</p></div>`;
+            petList.innerHTML = `<div class="empty-state"><img src="assets/empty.svg" alt=""><p>Nenhum paciente cadastrado no sistema.</p></div>`;
             return;
         }
 
         state.pets.forEach(pet => {
             const card = document.createElement('div');
-            card.className = 'pet-card vet-style';
+            card.className = 'pet-card';
+            card.dataset.petId = pet.id;
             card.innerHTML = `
-                <img src="${pet.photo || 'assets/placeholder.svg'}" alt="${pet.name}" class="pet-card-photo" style="border-color: var(--vet-color)" onerror="this.src='assets/placeholder.svg'">
-                <div class="pet-card-info">
-                    <h3 class="text-vet">${pet.name}</h3>
-                    <p><i class="ph ph-tag"></i> Espécie: ${pet.species}</p>
-                    <p style="font-size: 0.8rem; margin-top: 4px;"><i class="ph ph-barcode"></i> ${pet.microchip || 'Sem microchip'}</p>
+                <img src="${pet.photo || 'assets/placeholder.svg'}" alt="Foto de ${pet.name}" class="pet-card-photo" style="border-color: #0F172A;">
+                <div class="pet-card-info" style="flex-grow: 1;">
+                    <h3 style="color: #0F172A;">${pet.name}</h3>
+                    <p><strong>Espécie:</strong> ${pet.species} ${pet.breed ? `(${pet.breed})` : ''}</p>
+                    <p style="font-size: 0.85rem; color: var(--text-light); margin-top: 4px;">Microchip: ${pet.microchip || 'Não informado'}</p>
                 </div>
-                <div class="status-badge clinical"><i class="ph ph-file-text"></i> Prontuário</div>`;
+                <div>
+                    <span class="status-badge" style="background: #e0f2fe; color: #0369a1; padding: 6px 12px; border-radius: 20px;">Abrir Prontuário ➔</span>
+                </div>`;
             card.addEventListener('click', () => {
                 state.currentPetId = pet.id;
                 renderPetDetails();
@@ -218,8 +258,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 (pet[type] || []).forEach(record => {
                     if (record.nextDate) {
                         const nextDate = new Date(record.nextDate + 'T00:00:00');
-                        const diffDays = Math.ceil((nextDate - today) / (1000 * 60 * 60 * 24));
-                        if (diffDays <= 30 && diffDays >= 0) {
+                        const diffTime = nextDate - today;
+                        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                        if (diffDays <= 30 && diffTime >= 0) {
                             reminders.push({ petName: pet.name, recordName: record.name, diffDays, vet: record.vet });
                         }
                     }
@@ -228,64 +269,72 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         
         if (reminders.length === 0) {
-            remindersList.innerHTML = '<p class="text-muted" style="font-size:0.9rem;"><i class="ph ph-check-circle"></i> Tudo em dia! Nenhum lembrete para os próximos 30 dias.</p>';
+            remindersList.innerHTML = '<p>Nenhum lembrete para os próximos 30 dias.</p>';
             return;
         }
 
         reminders.sort((a, b) => a.diffDays - b.diffDays).forEach(r => {
             const card = document.createElement('div');
             card.className = 'reminder-card';
-            const reminderText = r.diffDays === 0 ? 'é hoje!' : `vence em ${r.diffDays} dia(s)`;
-            card.innerHTML = `
-                <i class="ph-fill ph-warning-circle"></i>
-                <div>
-                    <strong>${r.petName}</strong>: ${r.recordName}<br>
-                    <span style="font-size: 0.85rem; opacity: 0.8;">${reminderText}${r.vet ? ` na ${r.vet}` : ''}</span>
-                </div>`;
+            const dayText = r.diffDays === 1 ? 'dia' : 'dias';
+            const reminderText = r.diffDays === 0 ? 'hoje' : `em ${r.diffDays} ${dayText}`;
+            
+            const localText = r.vet ? ` na ${r.vet}` : '';
+            
+            card.innerHTML = `<p><strong>${r.petName}</strong>: Próximo(a) ${r.recordName} ${reminderText}${localText}.</p>`;
             remindersList.appendChild(card);
         });
     };
 
     const renderPetDetails = () => {
         const pet = state.pets.find(p => p.id === state.currentPetId);
-        if (!pet) return navigateTo('dashboard-page');
+        if (!pet) {
+            navigateTo('dashboard-page');
+            return;
+        }
 
         document.getElementById('details-pet-name').textContent = pet.name;
-        document.getElementById('details-content').innerHTML = `
-            <img id="details-photo" src="${pet.photo || 'assets/placeholder.svg'}" alt="${pet.name}" onerror="this.src='assets/placeholder.svg'">
-            <h2>${pet.name}</h2>
-            <p>${pet.species} ${pet.breed ? ` • ${pet.breed}` : ''}</p>
-            <div class="badges">
-                <span class="status-badge neutral"><i class="ph ph-gender-${pet.sex === 'Fêmea' ? 'female' : 'male'}"></i> ${pet.sex || 'N/I'}</span>
-                <span class="status-badge neutral"><i class="ph ph-calendar"></i> ${getPetAge(pet.birthdate)}</span>
-                ${pet.microchip ? `<span class="status-badge clinical"><i class="ph ph-barcode"></i> Chip OK</span>` : ''}
+        const detailsContent = document.getElementById('details-content');
+        detailsContent.innerHTML = `
+            <img id="details-photo" src="${pet.photo || 'assets/placeholder.svg'}" alt="Foto de ${pet.name}">
+            <div id="details-info">
+                <h2>${pet.name}</h2>
+                <p><strong>Espécie:</strong> ${pet.species} | <strong>Raça:</strong> ${pet.breed || 'Não informada'}</p>
+                <p><strong>Microchip:</strong> ${pet.microchip || 'Não informado'}</p>
+                <p class="pet-age">${getPetAge(pet.birthdate)}</p>
             </div>
-            <div class="action-buttons mt-4" style="width:100%;">
-                <button id="edit-pet-btn" class="btn btn-secondary btn-outline" style="flex:1;"><i class="ph ph-pencil-simple"></i> Editar</button>
-                <button id="delete-pet-btn" class="btn btn-secondary" style="color: var(--danger);"><i class="ph ph-trash"></i></button>
+            <div class="details-actions">
+                <button id="edit-pet-btn" class="btn btn-secondary">Editar</button>
+                <button id="delete-pet-btn" class="btn btn-danger">Excluir</button>
             </div>`;
         
-        ['vaccine', 'parasite', 'consult', 'weight', 'documento'].forEach(type => {
-            renderRecordList(type, pet[type + 's'] || (type==='documento'? pet.documents : []));
-        });
+        renderRecordList('vaccine', pet.vaccines || []);
+        renderRecordList('parasite', pet.parasites || []);
+        renderRecordList('consult', pet.consults || []);
+        renderRecordList('weight', pet.weights || []);
+        renderRecordList('documento', pet.documents || []);
 
+        // Mostrar o botão de Emitir Documento Apenas para o Veterinário
         const btnEmitirDoc = document.getElementById('btn-emitir-doc');
-        if (btnEmitirDoc) btnEmitirDoc.style.display = loggedUserTipo === 'veterinario' ? 'flex' : 'none';
-        
-        // Reset Tabs to first
-        document.querySelector('.tab-link[data-tab="tab-vaccines"]').click();
+        if (btnEmitirDoc) {
+            btnEmitirDoc.style.display = loggedUserTipo === 'veterinario' ? 'block' : 'none';
+        }
     };
     
     const renderRecordList = (type, records) => {
-        const listContainer = document.getElementById({
-            vaccine: 'vaccine-list', parasite: 'parasite-list', consult: 'consult-list', weight: 'weight-list', documento: 'doc-list'
-        }[type]);
-        
+        const listContainerId = {
+            vaccine: 'vaccine-list',
+            parasite: 'parasite-list',
+            consult: 'consult-list',
+            weight: 'weight-list',
+            documento: 'doc-list' // Ligação para doc médicos
+        }[type];
+        const listContainer = document.getElementById(listContainerId);
         if(!listContainer) return;
         listContainer.innerHTML = '';
         
         if (!records || records.length === 0) {
-            listContainer.innerHTML = '<div class="empty-state" style="padding: 1.5rem;"><i class="ph-fill ph-file-dashed"></i><p>Nenhum registro.</p></div>';
+            listContainer.innerHTML = '<p class="empty-state">Nenhum registro encontrado.</p>';
             return;
         }
         
@@ -293,35 +342,48 @@ document.addEventListener('DOMContentLoaded', () => {
 
         records.forEach(record => {
             const card = document.createElement('div');
-            card.className = type === 'documento' ? 'record-card doc-card' : 'record-card';
+            card.className = 'record-card';
+            card.style.alignItems = type === 'documento' ? 'flex-start' : 'center'; // Alinha o topo se for documento
             const formattedDate = new Date(record.date + 'T00:00:00').toLocaleDateString('pt-BR');
-            let content = `<div class="record-info"><h4>${record.name}</h4><p><i class="ph ph-calendar-blank"></i> ${formattedDate}</p>`;
+            let content = `<h4>${record.name}</h4><p><strong>Data:</strong> ${formattedDate}</p>`;
             
-            if (['vaccine', 'parasite'].includes(type)) {
-                if (record.vet) content += `<p><i class="ph ph-map-pin"></i> ${record.vet}</p>`;
-                if (record.nextDate) content += `<p class="mt-2"><span class="status-badge warning"><i class="ph ph-clock"></i> Próxima: ${new Date(record.nextDate + 'T00:00:00').toLocaleDateString('pt-BR')}</span></p>`;
+            if (type === 'vaccine' || type === 'parasite') {
+                if (record.vet) content += `<p><strong>Veterinário/Local:</strong> ${record.vet}</p>`;
+                if (record.nextDate) {
+                    const nextFormatted = new Date(record.nextDate + 'T00:00:00').toLocaleDateString('pt-BR');
+                    content += `<p class="next-due">Próxima dose: ${nextFormatted}</p>`;
+                }
             } else if (type === 'consult') {
-                if (record.vet) content += `<p><i class="ph ph-map-pin"></i> ${record.vet}</p>`;
-                if (record.notes) content += `<p class="mt-2 text-muted monospace">${record.notes}</p>`;
+                if (record.vet) content += `<p><strong>Local:</strong> ${record.vet}</p>`;
+                if (record.notes) content += `<p><strong>Anotações:</strong> ${record.notes}</p>`;
             } else if (type === 'weight') {
-                content = `<div class="record-info"><h4>${record.weight} kg</h4><p><i class="ph ph-calendar-blank"></i> ${formattedDate}</p>`;
+                content = `<h4>${record.weight} kg</h4><p><strong>Data:</strong> ${formattedDate}</p>`;
             } else if (type === 'documento') {
-                content = `<div class="record-info" style="width:100%;">
-                    <h4><i class="ph ph-file-text"></i> ${record.name}</h4>
-                    <p><i class="ph ph-calendar-blank"></i> Emitido em ${formattedDate}</p>
-                    <div class="mt-4 p-3 bg-light rounded monospace" style="border-radius:8px; padding:12px; white-space: pre-wrap; font-size:0.9rem; color:var(--text-color); border:1px solid var(--border-color);">${record.notes || ''}</div>`;
+                // Layout Especial para Documentos
+                content = `
+                    <h4 style="color: var(--primary-dark); font-size: 1.15rem; display:flex; align-items:center; gap:8px;">
+                       📄 ${record.name}
+                    </h4>
+                    <p style="font-size:0.9rem; color:var(--text-light); margin-bottom:12px;"><strong>Emitido em:</strong> ${formattedDate}</p>
+                    <div style="background: var(--bg-color); padding: 16px; border-radius: 8px; border-left: 4px solid var(--primary-color); white-space: pre-wrap; font-size: 0.95rem; color: var(--text-color); line-height: 1.6; font-family: monospace;">${record.notes || ''}</div>
+                `;
             }
-            content += `</div>`;
 
+            // O Tutor não pode editar ou apagar um Documento Oficial emitido pelo Veterinário!
             let actionButtons = `
                 <div class="record-actions">
-                    <button class="edit-record-btn" data-id="${record.id}" data-type="${type}"><i class="ph ph-pencil-simple"></i></button>
-                    <button class="delete-record-btn delete-btn" data-id="${record.id}" data-type="${type}"><i class="ph ph-trash"></i></button>
+                    <button class="edit-record-btn" data-record-id="${record.id}" data-type="${type}" aria-label="Editar registro">✏️</button>
+                    <button class="delete-record-btn" data-record-id="${record.id}" data-type="${type}" aria-label="Excluir registro">🗑️</button>
                 </div>`;
             
-            if (type === 'documento' && loggedUserTipo === 'tutor') actionButtons = ''; 
+            if (type === 'documento' && loggedUserTipo === 'tutor') {
+                actionButtons = ''; // Remove botões de exclusão
+            }
 
-            card.innerHTML = content + actionButtons;
+            card.innerHTML = `
+                <div style="flex-grow:1; width:100%;">${content}</div>
+                ${actionButtons}
+            `;
             listContainer.appendChild(card);
         });
     };
@@ -331,28 +393,15 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('contact-emergency').value = state.contacts.emergency || '';
     };
 
-    // --- SEARCH / FILTERS ---
-    window.filterPets = () => {
-        const input = document.getElementById('search-pet-input').value.toLowerCase();
-        document.querySelectorAll('#pet-list .pet-card').forEach(card => {
-            const text = card.textContent.toLowerCase();
-            card.style.display = text.includes(input) ? 'flex' : 'none';
-        });
-    };
+    // --- LÓGICA DOS FORMULÁRIOS (POST/PUT PARA A API) ---
 
-    window.filterVetPets = () => {
-        const input = document.getElementById('search-vet-input').value.toLowerCase();
-        document.querySelectorAll('#vet-pet-list .pet-card').forEach(card => {
-            const text = card.textContent.toLowerCase();
-            card.style.display = text.includes(input) ? 'flex' : 'none';
-        });
-    };
-
-    // --- FORMS & MODALS LOGIC ---
     petForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const id = document.getElementById('pet-id').value;
+        
         const photoSrc = document.getElementById('pet-photo-preview').src;
+        const fotoBase64 = photoSrc.includes('placeholder.svg') ? null : photoSrc;
+        
         const petData = {
             nome: document.getElementById('pet-name').value,
             especie: document.getElementById('pet-species').value,
@@ -360,97 +409,203 @@ document.addEventListener('DOMContentLoaded', () => {
             raca: document.getElementById('pet-breed').value || null,
             data_nascimento: document.getElementById('pet-birthdate').value || null,
             sexo: document.getElementById('pet-sex').value,
-            foto: photoSrc.includes('placeholder.svg') ? null : photoSrc
+            foto: fotoBase64
         };
 
         try {
-            const method = id ? 'PUT' : 'POST';
-            const url = id ? `${API_URL}/pets/${id}` : `${API_URL}/usuarios/${TUTOR_ID_TESTE}/pets/`;
-            const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(petData) });
-            
-            if (res.ok) {
-                await loadStateFromAPI();
-                navigateTo('dashboard-page');
-                showToast(`Pet ${id ? 'atualizado' : 'adicionado'} com sucesso!`, "ph-check-circle");
-            } else { throw new Error(await res.text()); }
-        } catch (error) { showToast("Erro ao salvar pet. Tente novamente.", "ph-warning"); }
+            if (id) { 
+                const response = await fetch(`${API_URL}/pets/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(petData)
+                });
+
+                if (response.ok) {
+                    await loadStateFromAPI();
+                    navigateTo('dashboard-page');
+                } else {
+                    alert("Erro da API: " + JSON.stringify(await response.json()));
+                }
+            } else {
+                const response = await fetch(`${API_URL}/usuarios/${TUTOR_ID_TESTE}/pets/`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(petData)
+                });
+
+                if (response.ok) {
+                    await loadStateFromAPI();
+                    navigateTo('dashboard-page');
+                } else {
+                    alert("Erro da API: " + JSON.stringify(await response.json()));
+                }
+            }
+        } catch (error) {
+            console.error(error);
+            alert("Erro de conexão com o servidor.");
+        }
     });
 
     recordForm.addEventListener('submit', async (e) => {
         e.preventDefault();
+        const pet = state.pets.find(p => p.id === state.currentPetId);
+        if (!pet) return;
+
+        const id = document.getElementById('record-id').value;
         const type = document.getElementById('record-type').value;
+        
+        const mappedType = {
+            vaccine: 'vacina',
+            parasite: 'parasita',
+            consult: 'consulta',
+            weight: 'peso'
+        }[type];
+
+        let anotacoesFinais = null;
+        if (type === 'vaccine' || type === 'parasite') {
+            anotacoesFinais = document.getElementById('record-vet').value || null;
+        } else if (type === 'consult') {
+            const vet = document.getElementById('record-vet').value;
+            const notes = document.getElementById('record-notes').value;
+            anotacoesFinais = [vet, notes].filter(Boolean).join(' | ') || null; 
+        }
+
         const recordData = {
-            tipo: { vaccine: 'vacina', parasite: 'parasita', consult: 'consulta', weight: 'peso' }[type],
-            nome: document.getElementById('record-name').value || 'Registro',
+            tipo: mappedType,
+            nome: document.getElementById('record-name').value || 'Registro de Peso',
             data: document.getElementById('record-date').value,
             proxima_data: document.getElementById('record-next-date').value || null,
             peso: document.getElementById('record-weight').value ? parseFloat(document.getElementById('record-weight').value) : null,
-            anotacoes: type === 'consult' 
-                ? [document.getElementById('record-vet').value, document.getElementById('record-notes').value].filter(Boolean).join(' | ') || null
-                : document.getElementById('record-vet').value || null
+            anotacoes: anotacoesFinais,
         };
 
         try {
-            const id = document.getElementById('record-id').value;
-            const method = id ? 'PUT' : 'POST';
-            const url = id ? `${API_URL}/registros/${id}` : `${API_URL}/pets/${state.currentPetId}/registros/`;
-            
-            const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(recordData) });
-            if (res.ok) {
-                await loadStateFromAPI();
-                renderPetDetails();
-                recordModal.classList.remove('visible');
-                showToast("Registro salvo!");
-            } else { throw new Error(); }
-        } catch (e) { showToast("Erro ao salvar registro.", "ph-warning"); }
+            if (id) {
+                const response = await fetch(`${API_URL}/registros/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(recordData)
+                });
+
+                if (response.ok) {
+                    await loadStateFromAPI();
+                    renderPetDetails();
+                    closeRecordModal();
+                } else {
+                    alert("Erro da API: " + JSON.stringify(await response.json()));
+                }
+            } else {
+                const response = await fetch(`${API_URL}/pets/${pet.id}/registros/`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(recordData)
+                });
+
+                if (response.ok) {
+                    await loadStateFromAPI();
+                    renderPetDetails();
+                    closeRecordModal();
+                } else {
+                    alert("Erro da API: " + JSON.stringify(await response.json()));
+                }
+            }
+        } catch (error) {
+            console.error(error);
+            alert("Erro de conexão com o servidor.");
+        }
+    });
+
+    // --- LÓGICA DO MODAL DE DOCUMENTOS MÉDICOS ---
+    const docModal = document.getElementById('doc-modal');
+    const docForm = document.getElementById('doc-form');
+
+    document.getElementById('btn-emitir-doc')?.addEventListener('click', () => {
+        docForm.reset();
+        document.getElementById('doc-date').value = new Date().toISOString().split('T')[0];
+        docModal.classList.add('visible');
+    });
+
+    document.getElementById('cancel-doc-btn')?.addEventListener('click', () => {
+        docModal.classList.remove('visible');
     });
 
     docForm?.addEventListener('submit', async (e) => {
         e.preventDefault();
+        const pet = state.pets.find(p => p.id === state.currentPetId);
+        if (!pet) return;
+
+        const docType = document.getElementById('doc-type').value;
+        const docDate = document.getElementById('doc-date').value;
+        const docVet = document.getElementById('doc-vet-name').value;
+        const docContent = document.getElementById('doc-content').value;
+
+        // O Nome vira o Título ("Receituário - Dr João")
+        // O corpo da prescrição vai nas Anotações
         const recordData = {
             tipo: 'documento',
-            nome: `${document.getElementById('doc-type').value} - ${document.getElementById('doc-vet-name').value}`,
-            data: document.getElementById('doc-date').value,
-            proxima_data: null, peso: null,
-            anotacoes: document.getElementById('doc-content').value
+            nome: `${docType} - ${docVet}`,
+            data: docDate,
+            proxima_data: null,
+            peso: null,
+            anotacoes: docContent
         };
+
         try {
-            const res = await fetch(`${API_URL}/pets/${state.currentPetId}/registros/`, {
-                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(recordData)
+            const response = await fetch(`${API_URL}/pets/${pet.id}/registros/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(recordData)
             });
-            if (res.ok) {
+
+            if (response.ok) {
                 await loadStateFromAPI();
                 renderPetDetails();
                 docModal.classList.remove('visible');
-                showToast("Documento emitido e enviado ao tutor!", "ph-paper-plane-right");
-            } else { throw new Error(); }
-        } catch(e) { showToast("Erro ao emitir doc.", "ph-warning"); }
+                alert('Documento emitido com sucesso! O Tutor já pode visualizar.');
+            } else {
+                alert("Erro da API ao emitir documento.");
+            }
+        } catch (error) {
+            console.error(error);
+            alert("Erro de conexão com o servidor.");
+        }
     });
 
+
+    // --- MANIPULAÇÃO DO MODAL (Registros Regulares) ---
     const openRecordModal = (type, record = null) => {
         recordForm.reset();
         document.getElementById('record-type').value = type;
+
         recordForm.querySelectorAll('.form-group[data-field]').forEach(el => el.style.display = 'none');
         
         const configs = {
             vaccine: { title: 'Vacina', fields: ['vet', 'next-date'] },
-            parasite: { title: 'Controle Parasitário', fields: ['vet', 'next-date'] },
+            parasite: { title: 'Controle de Parasitas', fields: ['vet', 'next-date'] },
             consult: { title: 'Consulta', fields: ['vet', 'notes'] },
             weight: { title: 'Peso', fields: ['weight'] }
         };
-        const config = configs[type];
-        document.getElementById('modal-title').textContent = (record ? 'Editar ' : 'Novo(a) ') + config.title;
 
-        const nameInput = document.getElementById('record-name');
+        const config = configs[type];
+        document.getElementById('modal-title').textContent = (record ? 'Editar ' : 'Adicionar ') + config.title;
+
+        const recordNameInput = document.getElementById('record-name');
+        const recordNameGroup = recordNameInput.parentElement;
+
         if (type === 'weight') {
-            nameInput.parentElement.style.display = 'none'; nameInput.required = false;
+            recordNameGroup.style.display = 'none';
+            recordNameInput.required = false; 
         } else {
-            nameInput.parentElement.style.display = 'block'; nameInput.required = true;
+            recordNameGroup.style.display = 'block';
+            recordNameInput.required = true; 
         }
 
-        config.fields.forEach(f => recordForm.querySelector(`.form-group[data-field="${f}"]`).style.display = 'block');
+        config.fields.forEach(field => {
+            recordForm.querySelector(`.form-group[data-field="${field}"]`).style.display = 'block';
+        });
 
         if (record) {
+            state.editingRecordId = record.id;
             document.getElementById('record-id').value = record.id;
             document.getElementById('record-name').value = record.name;
             document.getElementById('record-date').value = record.date;
@@ -459,208 +614,390 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('record-weight').value = record.weight || '';
             document.getElementById('record-notes').value = record.notes || '';
         } else {
-            document.getElementById('record-id').value = '';
-            document.getElementById('record-date').value = new Date().toISOString().split('T')[0];
+            state.editingRecordId = null;
         }
         
         recordModal.classList.add('visible');
+        recordModal.querySelector('input, button, select, textarea').focus();
     };
 
-    // --- ACCESSIBILITY WIDGET ---
-    let a11ySettings = JSON.parse(localStorage.getItem('petcareplus_a11y')) || { highContrast: false, largeText: false, dyslexiaFont: false, highlightLinks: false };
-    
-    const applyA11y = () => {
+    const closeRecordModal = () => {
+        recordModal.classList.remove('visible');
+    };
+
+    // --- LÓGICA DE CONFIGURAÇÕES, DADOS E CONTATOS ---
+    const contactsForm = document.getElementById('contacts-form');
+    contactsForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        state.contacts.vet = document.getElementById('contact-vet').value;
+        state.contacts.emergency = document.getElementById('contact-emergency').value;
+        saveLocalContacts();
+        alert('Contatos salvos com sucesso!');
+    });
+
+    const exportBtn = document.getElementById('export-data-btn');
+    if (exportBtn) {
+        exportBtn.addEventListener('click', () => {
+            const dataToExport = {
+                pets: state.pets,
+                contacts: state.contacts
+            };
+            
+            const dataStr = JSON.stringify(dataToExport, null, 2);
+            const dataBlob = new Blob([dataStr], { type: 'application/json' });
+            const dataUri = URL.createObjectURL(dataBlob);
+            
+            const exportFileDefaultName = `petcareplus_backup_${new Date().toISOString().slice(0,10)}.json`;
+            
+            const linkElement = document.createElement('a');
+            linkElement.setAttribute('href', dataUri);
+            linkElement.setAttribute('download', exportFileDefaultName);
+            document.body.appendChild(linkElement);
+            linkElement.click();
+            document.body.removeChild(linkElement);
+        });
+    }
+
+    const importBtn = document.getElementById('import-data-btn');
+    const importFileInput = document.getElementById('import-file-input');
+
+    if (importBtn && importFileInput) {
+        importBtn.addEventListener('click', () => {
+            if (confirm('Atenção: Os pets do ficheiro serão ADICIONADOS à sua conta atual no banco de dados. Deseja continuar?')) {
+                importFileInput.click();
+            }
+        });
+
+        importFileInput.addEventListener('change', async (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                try {
+                    const importedData = JSON.parse(e.target.result);
+                    
+                    if (!importedData.pets || !Array.isArray(importedData.pets)) {
+                        alert('Ficheiro inválido ou corrompido.');
+                        return;
+                    }
+
+                    if (importedData.contacts) {
+                        state.contacts = importedData.contacts;
+                        saveLocalContacts();
+                    }
+
+                    alert('A iniciar a importação... Por favor, aguarde.');
+                    
+                    let petsImportados = 0;
+                    let petsComErro = 0;
+
+                    for (const pet of importedData.pets) {
+                        const petData = {
+                            nome: pet.name,
+                            especie: pet.species,
+                            microchip: pet.microchip || null,
+                            raca: pet.breed || null,
+                            data_nascimento: pet.birthdate || null,
+                            sexo: pet.sex || 'Macho',
+                            foto: pet.photo || null
+                        };
+
+                        const petRes = await fetch(`${API_URL}/usuarios/${TUTOR_ID_TESTE}/pets/`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(petData)
+                        });
+
+                        if (petRes.ok) {
+                            const newPet = await petRes.json();
+                            const newPetId = newPet.id;
+
+                            const allRecords = [
+                                ...(pet.vaccines || []).map(r => ({ ...r, tipo: 'vacina' })),
+                                ...(pet.parasites || []).map(r => ({ ...r, tipo: 'parasita' })),
+                                ...(pet.consults || []).map(r => ({ ...r, tipo: 'consulta' })),
+                                ...(pet.weights || []).map(r => ({ ...r, tipo: 'peso' })),
+                                ...(pet.documents || []).map(r => ({ ...r, tipo: 'documento' })) // Suporte para importar docs também
+                            ];
+
+                            for (const record of allRecords) {
+                                const recordData = {
+                                    tipo: record.tipo,
+                                    nome: record.name,
+                                    data: record.date,
+                                    proxima_data: record.nextDate || null,
+                                    peso: record.weight || null,
+                                    anotacoes: record.notes || record.vet || null
+                                };
+
+                                await fetch(`${API_URL}/pets/${newPetId}/registros/`, {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify(recordData)
+                                });
+                            }
+                            petsImportados++;
+                        } else {
+                            const erroApi = await petRes.json();
+                            console.warn(`Não foi possível importar o pet ${pet.name}:`, erroApi.detail);
+                            petsComErro++;
+                        }
+                    }
+
+                    let mensagemFinal = `Importação concluída! ${petsImportados} pets importados com sucesso.`;
+                    if (petsComErro > 0) {
+                        mensagemFinal += `\nForam ignorados ${petsComErro} pet(s) que não puderam ser importados.`;
+                    }
+                    
+                    alert(mensagemFinal);
+                    
+                    await loadStateFromAPI();
+                    renderSettingsPage(); 
+                    importFileInput.value = '';
+
+                } catch (error) {
+                    console.error('Erro na importação:', error);
+                    alert('Ocorreu um erro ao processar o ficheiro. Verifique se é um backup válido.');
+                }
+            };
+            reader.readAsText(file);
+        });
+    }
+
+    // --- LÓGICA DE ACESSIBILIDADE ---
+    const accessibilityBtn = document.getElementById('accessibility-btn');
+    const accessibilityPanel = document.getElementById('accessibility-panel');
+    const toggles = {
+        contrast: document.getElementById('toggle-contrast'),
+        largeText: document.getElementById('toggle-large-text'),
+        dyslexiaFont: document.getElementById('toggle-dyslexia-font'),
+        highlightLinks: document.getElementById('toggle-highlight-links')
+    };
+
+    let a11ySettings = {
+        highContrast: false,
+        largeText: false,
+        dyslexiaFont: false,
+        highlightLinks: false,
+    };
+
+    const a11yStorageKey = 'petcareplus_a11y_v1';
+
+    const saveA11ySettings = () => {
+        localStorage.setItem(a11yStorageKey, JSON.stringify(a11ySettings));
+    };
+
+    const applyA11ySettings = () => {
         document.body.classList.toggle('high-contrast', a11ySettings.highContrast);
         document.documentElement.classList.toggle('large-text', a11ySettings.largeText); 
         document.body.classList.toggle('dyslexia-font', a11ySettings.dyslexiaFont);
         document.body.classList.toggle('highlight-links', a11ySettings.highlightLinks);
         
-        ['contrast', 'largeText', 'dyslexiaFont', 'highlightLinks'].forEach(k => {
-            const el = document.getElementById(`toggle-${k.replace(/[A-Z]/g, m => '-' + m.toLowerCase())}`);
-            if(el) el.setAttribute('aria-checked', a11ySettings[k]);
-        });
-        localStorage.setItem('petcareplus_a11y', JSON.stringify(a11ySettings));
+        toggles.contrast.setAttribute('aria-checked', a11ySettings.highContrast);
+        toggles.largeText.setAttribute('aria-checked', a11ySettings.largeText);
+        toggles.dyslexiaFont.setAttribute('aria-checked', a11ySettings.dyslexiaFont);
+        toggles.highlightLinks.setAttribute('aria-checked', a11ySettings.highlightLinks);
     };
 
-    document.getElementById('accessibility-btn').addEventListener('click', (e) => {
-        const btn = e.currentTarget;
-        const isExpanded = btn.getAttribute('aria-expanded') === 'true';
-        btn.setAttribute('aria-expanded', !isExpanded);
-        document.getElementById('accessibility-panel').classList.toggle('visible');
+    const loadA11ySettings = () => {
+        const savedSettings = localStorage.getItem(a11yStorageKey);
+        if (savedSettings) {
+            a11ySettings = JSON.parse(savedSettings);
+        }
+        applyA11ySettings();
+    };
+
+    accessibilityBtn.addEventListener('click', () => {
+        const isExpanded = accessibilityBtn.getAttribute('aria-expanded') === 'true';
+        accessibilityBtn.setAttribute('aria-expanded', !isExpanded);
+        accessibilityPanel.classList.toggle('visible');
+        accessibilityPanel.setAttribute('aria-hidden', isExpanded);
     });
 
-    ['contrast', 'largeText', 'dyslexiaFont', 'highlightLinks'].forEach(k => {
-        document.getElementById(`toggle-${k.replace(/[A-Z]/g, m => '-' + m.toLowerCase())}`)?.addEventListener('click', () => {
-            a11ySettings[k] = !a11ySettings[k]; applyA11y();
+    for (const key in toggles) {
+        toggles[key].addEventListener('click', () => {
+            const settingKey = key === 'contrast' ? 'highContrast' : key;
+            a11ySettings[settingKey] = !a11ySettings[settingKey];
+            saveA11ySettings();
+            applyA11ySettings();
         });
+    }
+
+    // --- EVENT LISTENERS GLOBAIS (delegação de eventos) ---
+
+    document.getElementById('start-app-btn').addEventListener('click', () => {
+        if (loggedUserTipo === 'veterinario') {
+            renderVetDashboard();
+            navigateTo('vet-dashboard-page');
+        } else {
+            renderDashboard();
+            navigateTo('dashboard-page');
+        }
+        localStorage.setItem('petcareplus_visited', 'true');
     });
 
-    // --- GLOBAL EVENT LISTENERS (DELEGATION) ---
-    document.body.addEventListener('click', async (e) => {
-        // Navigation Buttons
-        const backBtn = e.target.closest('.back-btn');
-        if (backBtn) {
-            let target = backBtn.dataset.target;
-            if (target === 'dashboard-page' && loggedUserTipo === 'veterinario') target = 'vet-dashboard-page';
-            navigateTo(target);
-        }
-
-        // Tabs Logic
-        if (e.target.closest('.tab-link')) {
-            const tabBtn = e.target.closest('.tab-link');
-            const nav = tabBtn.closest('.tabs-nav');
-            const indicator = nav.querySelector('.tab-indicator');
-            
-            nav.querySelectorAll('.tab-link').forEach(t => t.classList.remove('active'));
-            tabBtn.classList.add('active');
-            
-            // Move indicator
-            indicator.style.width = `${tabBtn.offsetWidth}px`;
-            indicator.style.transform = `translateX(${tabBtn.offsetLeft}px)`;
-            
-            document.querySelectorAll('.tab-content').forEach(c => {
-                c.classList.remove('active');
-                c.classList.remove('fade-in');
-            });
-            const targetContent = document.getElementById(tabBtn.dataset.tab);
-            targetContent.classList.add('active');
-            // Re-trigger animation
-            setTimeout(() => targetContent.classList.add('fade-in'), 10);
-        }
-
-        // Add Pet
-        if (e.target.closest('#add-pet-btn-dashboard')) {
-            petForm.reset();
-            document.getElementById('pet-id').value = '';
-            document.getElementById('pet-photo-preview').src = 'assets/placeholder.svg';
-            document.getElementById('remove-photo-btn').style.display = 'none';
-            document.getElementById('form-title').textContent = 'Adicionar Pet';
-            navigateTo('pet-form-page');
-        }
-
-        // Photo Upload Proxy
-        if (e.target.closest('#select-photo-btn') || e.target.closest('.photo-preview-wrapper')) {
-            document.getElementById('pet-photo').click();
-        }
-        
-        // Settings
-        if (e.target.closest('#settings-btn')) { renderSettingsPage(); navigateTo('settings-page'); }
-        
-        // Start App
-        if (e.target.closest('#start-app-btn')) {
-            localStorage.setItem('petcareplus_visited', 'true');
-            navigateTo(loggedUserTipo === 'veterinario' ? 'vet-dashboard-page' : 'dashboard-page');
-        }
-
-        // Edit Pet
-        if (e.target.closest('#edit-pet-btn')) {
-            const pet = state.pets.find(p => p.id === state.currentPetId);
-            document.getElementById('form-title').textContent = 'Editar Pet';
-            document.getElementById('pet-id').value = pet.id;
-            ['name', 'species', 'microchip', 'breed', 'birthdate', 'sex'].forEach(f => document.getElementById(`pet-${f}`).value = pet[f] || '');
-            
-            const photoPreview = document.getElementById('pet-photo-preview');
-            const removeBtn = document.getElementById('remove-photo-btn');
-            if (pet.photo) { photoPreview.src = pet.photo; removeBtn.style.display = 'inline-flex'; }
-            else { photoPreview.src = 'assets/placeholder.svg'; removeBtn.style.display = 'none'; }
-            navigateTo('pet-form-page');
-        }
-
-        // Delete Pet
-        if (e.target.closest('#delete-pet-btn')) {
-            if(confirm('Atenção: Excluir este pet apagará todos os seus registros permanentemente. Continuar?')) {
-                try {
-                    await fetch(`${API_URL}/pets/${state.currentPetId}`, { method: 'DELETE' });
-                    await loadStateFromAPI(); navigateTo('dashboard-page'); showToast("Pet excluído.");
-                } catch(e) { showToast("Erro ao excluir", "ph-warning"); }
-            }
-        }
-
-        // Records Modals Interactions
-        if (e.target.closest('.add-record-btn')) openRecordModal(e.target.closest('.add-record-btn').dataset.type);
-        if (e.target.closest('.edit-record-btn')) {
-            const btn = e.target.closest('.edit-record-btn');
-            const { id, type } = btn.dataset;
-            if(type === 'documento') return; // Cannot edit official docs this way
-            const recordArray = `${type}s`;
-            const pet = state.pets.find(p => p.id === state.currentPetId);
-            openRecordModal(type, pet[recordArray].find(r => r.id == id));
-        }
-        if (e.target.closest('.delete-record-btn')) {
-            if(confirm('Excluir este registro?')) {
-                const btn = e.target.closest('.delete-record-btn');
-                try {
-                    await fetch(`${API_URL}/registros/${btn.dataset.id}`, { method: 'DELETE' });
-                    await loadStateFromAPI(); renderPetDetails(); showToast("Registro excluído.");
-                } catch(e) {}
-            }
-        }
-
-        if (e.target.closest('.close-modal-btn') || e.target.closest('.cancel-modal-btn') || e.target.id === 'record-modal') {
-            recordModal.classList.remove('visible');
-        }
-        
-        if (e.target.closest('#btn-emitir-doc')) {
-            docForm.reset();
-            document.getElementById('doc-date').value = new Date().toISOString().split('T')[0];
-            docModal.classList.add('visible');
-        }
-        if (e.target.closest('.close-doc-btn') || e.target.closest('.cancel-doc-btn') || e.target.id === 'doc-modal') {
-            docModal.classList.remove('visible');
-        }
+    document.getElementById('add-pet-btn-dashboard').addEventListener('click', () => {
+        petForm.reset();
+        document.getElementById('pet-id').value = '';
+        document.getElementById('pet-photo-preview').src = 'assets/placeholder.svg';
+        document.getElementById('remove-photo-btn').style.display = 'none'; 
+        document.getElementById('form-title').textContent = 'Adicionar Pet';
+        navigateTo('pet-form-page');
     });
 
-    // Handle Image file input
-    document.getElementById('pet-photo').addEventListener('change', (e) => {
-        const file = e.target.files[0];
+    document.getElementById('select-photo-btn').addEventListener('click', () => document.getElementById('pet-photo').click());
+    
+    document.getElementById('pet-photo').addEventListener('change', (event) => {
+        const file = event.target.files[0];
         if (file) {
             const reader = new FileReader();
-            reader.onload = (ev) => { 
-                document.getElementById('pet-photo-preview').src = ev.target.result;
+            reader.onload = (e) => { 
+                document.getElementById('pet-photo-preview').src = e.target.result; 
                 document.getElementById('remove-photo-btn').style.display = 'inline-flex';
             };
             reader.readAsDataURL(file);
         }
     });
+
     document.getElementById('remove-photo-btn').addEventListener('click', () => {
         document.getElementById('pet-photo-preview').src = 'assets/placeholder.svg';
         document.getElementById('pet-photo').value = '';
         document.getElementById('remove-photo-btn').style.display = 'none';
     });
+    
+    document.querySelector('.tabs-nav').addEventListener('click', (e) => {
+        if (e.target.matches('.tab-link')) {
+            document.querySelectorAll('.tab-link').forEach(tab => {
+                tab.classList.remove('active');
+                tab.setAttribute('aria-selected', 'false');
+            });
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
 
-    // Contacts Save
-    document.getElementById('contacts-form')?.addEventListener('submit', (e) => {
-        e.preventDefault();
-        state.contacts.vet = document.getElementById('contact-vet').value;
-        state.contacts.emergency = document.getElementById('contact-emergency').value;
-        saveLocalContacts(); showToast('Contatos salvos com sucesso!');
-    });
-
-    // Initialize Tab Indicator on Window Resize
-    window.addEventListener('resize', () => {
-        const activeTab = document.querySelector('.tab-link.active');
-        if (activeTab) {
-            const indicator = document.querySelector('.tab-indicator');
-            indicator.style.width = `${activeTab.offsetWidth}px`;
-            indicator.style.transform = `translateX(${activeTab.offsetLeft}px)`;
+            e.target.classList.add('active');
+            e.target.setAttribute('aria-selected', 'true');
+            document.getElementById(e.target.dataset.tab).classList.add('active');
         }
     });
 
-    // --- INIT ---
-    const init = async () => {
-        applyA11y();
-        connectWebSocket();
-        await loadStateFromAPI();
-        
-        // Initial Tab setup
-        setTimeout(() => window.dispatchEvent(new Event('resize')), 100);
+    document.body.addEventListener('click', async (e) => {
+        // Botões de voltar
+        if (e.target.closest('.back-btn')) {
+            let targetPage = e.target.closest('.back-btn').dataset.target;
+            
+            // Se o botão de voltar quiser ir pro dashboard e o cara for vet, desvia para o painel clínico
+            if (targetPage === 'dashboard-page' && loggedUserTipo === 'veterinario') {
+                targetPage = 'vet-dashboard-page';
+            }
 
+            if(targetPage === 'dashboard-page') renderDashboard();
+            if(targetPage === 'vet-dashboard-page') renderVetDashboard();
+            
+            navigateTo(targetPage);
+        }
+        // Editar Pet
+        if (e.target.id === 'edit-pet-btn') {
+            const pet = state.pets.find(p => p.id === state.currentPetId);
+            document.getElementById('form-title').textContent = 'Editar Pet';
+            document.getElementById('pet-id').value = pet.id;
+            document.getElementById('pet-name').value = pet.name;
+            document.getElementById('pet-species').value = pet.species;
+            document.getElementById('pet-microchip').value = pet.microchip;
+            document.getElementById('pet-breed').value = pet.breed;
+            document.getElementById('pet-birthdate').value = pet.birthdate;
+            document.getElementById('pet-sex').value = pet.sex;
+            
+            if (pet.photo && !pet.photo.includes('placeholder.svg')) {
+                document.getElementById('pet-photo-preview').src = pet.photo;
+                document.getElementById('remove-photo-btn').style.display = 'inline-flex';
+            } else {
+                document.getElementById('pet-photo-preview').src = 'assets/placeholder.svg';
+                document.getElementById('remove-photo-btn').style.display = 'none';
+            }
+            
+            navigateTo('pet-form-page');
+        }
+        // Excluir Pet
+        if (e.target.id === 'delete-pet-btn') {
+            if(confirm('Tem certeza que deseja excluir este pet e todos os seus registos?')) {
+                try {
+                    const response = await fetch(`${API_URL}/pets/${state.currentPetId}`, {
+                        method: 'DELETE'
+                    });
+                    if (response.ok) {
+                        await loadStateFromAPI();
+                        navigateTo('dashboard-page');
+                    }
+                } catch (error) {
+                    console.error("Erro ao excluir pet", error);
+                }
+            }
+        }
+        // Botões de adicionar registro
+        if (e.target.matches('.add-record-btn')) {
+            const type = e.target.dataset.type;
+            openRecordModal(type);
+        }
+        // Editar Registro (Ignora Documentos se for clicado)
+        if (e.target.closest('.edit-record-btn')) {
+            const btn = e.target.closest('.edit-record-btn');
+            const { recordId, type } = btn.dataset;
+            if(type === 'documento') return; // Bloqueia edição extra de docs pelo modal normal
+            const pet = state.pets.find(p => p.id === state.currentPetId);
+            const recordArrayName = `${type}s`;
+            const record = pet[recordArrayName].find(r => r.id === parseInt(recordId));
+            openRecordModal(type, record);
+        }
+        // Excluir Registro
+        if (e.target.closest('.delete-record-btn')) {
+            if(confirm('Tem certeza que deseja excluir este registo?')) {
+                const btn = e.target.closest('.delete-record-btn');
+                const { recordId } = btn.dataset;
+                
+                try {
+                    const response = await fetch(`${API_URL}/registros/${recordId}`, {
+                        method: 'DELETE'
+                    });
+                    if (response.ok) {
+                        await loadStateFromAPI();
+                        renderPetDetails();
+                    }
+                } catch (error) {
+                    console.error("Erro ao excluir registo", error);
+                }
+            }
+        }
+        // Fechar Modal Registros normais
+        if (e.target.id === 'cancel-modal-btn' || e.target === recordModal) {
+            closeRecordModal();
+        }
+        // Fechar Modal Documentos
+        if (e.target === docModal) {
+            docModal.classList.remove('visible');
+        }
+        // Botão de configurações
+        if (e.target.closest('#settings-btn')) {
+            renderSettingsPage();
+            navigateTo('settings-page');
+        }
+    });
+
+    // --- INICIALIZAÇÃO ---
+    async function init() {
+        connectWebSocket();
+        
+        await loadStateFromAPI();
+        loadA11ySettings(); 
         if (localStorage.getItem('petcareplus_visited')) {
-            navigateTo(loggedUserTipo === 'veterinario' ? 'vet-dashboard-page' : 'dashboard-page');
+            if (loggedUserTipo === 'veterinario') {
+                navigateTo('vet-dashboard-page');
+            } else {
+                navigateTo('dashboard-page');
+            }
         } else {
             navigateTo('welcome-page');
         }
-    };
+    }
     
     init();
 });
