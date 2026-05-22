@@ -72,7 +72,15 @@ function openRecordModal(record: any = null) {
     }
   } else {
     isEditing.value = false
-    recordForm.value = { id: null, name: '', date: new Date().toISOString().split('T')[0], nextDate: '', vet: '', weight: '', notes: '' }
+    recordForm.value = { 
+    id: null, 
+    name: '', 
+    date: new Date().toISOString().split('T')[0] || '', 
+    nextDate: '', 
+    vet: '', 
+    weight: '', 
+    notes: '' 
+}
   }
   showRecordModal.value = true
 }

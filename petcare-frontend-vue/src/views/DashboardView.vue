@@ -63,6 +63,8 @@ const reminders = computed(() => {
   return upcoming.sort((a, b) => a.diffDays - b.diffDays)
 })
 
+
+
 function logout() {
   authStore.logout()
 }
@@ -83,6 +85,7 @@ function toggleNotifications() {
   if (showNotifications.value) {
     petStore.clearNotifications()
     petStore.hasNewNotification = false
+    
   }
 }
 </script>

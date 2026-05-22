@@ -10,7 +10,7 @@ const showToast = ref(false)
 // Escuta mudanças na store para disparar o toast
 petStore.$subscribe((mutation, state) => {
   if (state.unreadCount > 0) {
-    currentMsg.value = state.notifications[state.notifications.length - 1]
+    currentMsg.value = state.notifications[state.notifications.length - 1] ?? ''
     showToast.value = true
     setTimeout(() => showToast.value = false, 6000)
   }

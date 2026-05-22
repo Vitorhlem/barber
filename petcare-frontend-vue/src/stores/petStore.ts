@@ -33,7 +33,7 @@ export const usePetStore = defineStore('pets', () => {
   const pets = ref<Pet[]>([])
   const notifications = ref<string[]>([])
   const unreadCount = ref(0)
-  
+  const hasNewNotification = ref(false) // <--- ADICIONE ISTO AQUI
   // Detecção automática de ambiente
   const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
   const apiUrl = isLocalhost 
@@ -117,7 +117,8 @@ export const usePetStore = defineStore('pets', () => {
     pets, 
     notifications, 
     unreadCount, 
-    fetchPets, 
+    fetchPets,
+    hasNewNotification,
     connectWebSocket, 
     clearNotifications, 
     apiUrl 
