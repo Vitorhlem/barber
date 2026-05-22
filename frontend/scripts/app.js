@@ -7,10 +7,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const loggedUserTipo = localStorage.getItem('petcareplus_user_tipo') || 'tutor';
 
     // Se não tiver ID salvo, joga para a tela de login
-    if (!loggedUserId) {
-        window.location.replace('login.html');
-        return; 
-    }
+
 
     const TUTOR_ID_TESTE = parseInt(loggedUserId); 
     let socket;
