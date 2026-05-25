@@ -1,7 +1,9 @@
+# database.py
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 
-SQLALCHEMY_DATABASE_URL = "postgresql://petvacina_11cn_user:7LdHQ3KlQUuRLfUxVravwTgRlvWSehOi@dpg-d85ohoti849s7384goag-a/petvacina_11cn"
+# String de conexão para rodar local no pgAdmin (Substitua 'postgres' e 'suasenha' pelos seus dados locais, e crie o banco 'barberbase')
+SQLALCHEMY_DATABASE_URL = "postgresql://postgres:Admin123@localhost:5432/barber"
 engine = create_engine(SQLALCHEMY_DATABASE_URL)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

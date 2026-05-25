@@ -1,6 +1,8 @@
-from sqlalchemy import Column, Integer, String, Date, ForeignKey, Float
+# models.py
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Float
 from sqlalchemy.orm import relationship
 from database import Base
+import datetime
 
 class Usuario(Base):
     __tablename__ = "usuarios"
@@ -10,40 +12,39 @@ class Usuario(Base):
     email = Column(String, unique=True, index=True)
     senha_hash = Column(String)
     tipo = Column(String) 
-    crmv = Column(String, nullable=True) 
+    telefone = Column(String, nullable=True) 
 
-    pets = relationship("Pet", back_populates="tutor", foreign_keys='Pet.tutor_id')
-    registros_criados = relationship("Registro", back_populates="veterinario")
+    agendamentos_como_cliente = relationship("Agendamento", foreign_keys='Agendamento.cliente_id', back_populates="cliente")
+    agendamentos_como_barbeiro = relationship("Agendamento", foreign_keys='Agendamento.barbeiro_id', back_populates="barbeiro")
 
-class Pet(Base):
-    __tablename__ = "pets"
 
-    id = Column(Integer, primary_key=True, index=True)
-    nome = Column(String, index=True)
-    especie = Column(String)
-    raca = Column(String, nullable=True)
-    microchip = Column(String, nullable=True)
-    data_nascimento = Column(Date, nullable=True)
-    sexo = Column(String)
-    foto = Column(String, nullable=True) # <-- NOVA COLUNA AQUI
-    tutor_id = Column(Integer, ForeignKey("usuarios.id"))
-
-    tutor = relationship("Usuario", back_populates="pets", foreign_keys=[tutor_id])
-    registros = relationship("Registro", back_populates="pet")
-
-class Registro(Base):
-    __tablename__ = "registros"
+class Agendamento(Base):
+    __tablename__ = "agendamentos"
 
     id = Column(Integer, primary_key=True, index=True)
-    tipo = Column(String) 
-    nome = Column(String)
-    data = Column(Date)
-    proxima_data = Column(Date, nullable=True)
-    peso = Column(Float, nullable=True)
-    anotacoes = Column(String, nullable=True)
+    cliente_id = Column(Integer, ForeignKey("usuarios.id"))
+    barbeiro_id = Column(Integer, ForeignKey("usuarios.id"))
+    servico = Column(String) 
+    data_hora = Column(DateTime, default=datetime.datetime.utcnow)
+    status = Column(String, default="Pendente") 
+    preco = Column(Float, default=0.0) # <--- NOVO CAMPO FINANCEIRO
+    google_event_id = Column(String, nullable=True) # ADICIONE ESTA LINHA
+    cliente = relationship("Usuario", foreign_keys=[cliente_id], back_populates="agendamentos_como_cliente")
+    barbeiro = relationship("Usuario", foreign_keys=[barbeiro_id], back_populates="agendamentos_como_barbeiro")
+    cliente = relationship("Usuario", foreign_keys=[cliente_id])
+    barbeiro = relationship("Usuario", foreign_keys=[barbeiro_id])
+    @property
+    def cliente_nome(self):
+        return self.cliente.nome if self.cliente else "Desconhecido"
+
+    @property
+    def barbeiro_nome(self):
+        return self.barbeiro.nome if self.barbeiro else "Desconhecido"
     
-    pet_id = Column(Integer, ForeignKey("pets.id"))
-    veterinario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=True)
-
-    pet = relationship("Pet", back_populates="registros")
-    veterinario = relationship("Usuario", back_populates="registros_criados")
+class GoogleToken(Base):
+    __tablename__ = "google_tokens"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("usuarios.id"))
+    access_token = Column(String)
+    refresh_token = Column(String)
+    token_expiry = Column(DateTime)

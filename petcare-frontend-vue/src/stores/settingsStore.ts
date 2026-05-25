@@ -2,20 +2,18 @@ import { defineStore } from 'pinia'
 import { ref, watch } from 'vue'
 
 export const useSettingsStore = defineStore('settings', () => {
-  // --- CONTATOS DE EMERGÊNCIA ---
-  const contacts = ref({ vet: '', emergency: '' })
+  const contacts = ref({ barbearia: '', suporte: '' })
   
-  const savedContacts = localStorage.getItem('petcareplus_contacts')
+  const savedContacts = localStorage.getItem('barberbase_contacts')
   if (savedContacts) {
     contacts.value = JSON.parse(savedContacts)
   }
 
-  function saveContacts(vet: string, emergency: string) {
-    contacts.value = { vet, emergency }
-    localStorage.setItem('petcareplus_contacts', JSON.stringify(contacts.value))
+  function saveContacts(barbearia: string, suporte: string) {
+    contacts.value = { barbearia, suporte }
+    localStorage.setItem('barberbase_contacts', JSON.stringify(contacts.value))
   }
 
-  // --- ACESSIBILIDADE ---
   const a11y = ref({
     highContrast: false,
     largeText: false,
@@ -23,12 +21,11 @@ export const useSettingsStore = defineStore('settings', () => {
     highlightLinks: false,
   })
 
-  const savedA11y = localStorage.getItem('petcareplus_a11y')
+  const savedA11y = localStorage.getItem('barberbase_a11y')
   if (savedA11y) {
     a11y.value = JSON.parse(savedA11y)
   }
 
-  // Aplica as classes no <body> do HTML
   function applyAccessibility() {
     document.body.classList.toggle('high-contrast', a11y.value.highContrast)
     document.documentElement.classList.toggle('large-text', a11y.value.largeText)
@@ -36,9 +33,8 @@ export const useSettingsStore = defineStore('settings', () => {
     document.body.classList.toggle('highlight-links', a11y.value.highlightLinks)
   }
 
-  // Assiste mudanças no objeto a11y e salva automaticamente
   watch(a11y, (newVal) => {
-    localStorage.setItem('petcareplus_a11y', JSON.stringify(newVal))
+    localStorage.setItem('barberbase_a11y', JSON.stringify(newVal))
     applyAccessibility()
   }, { deep: true })
 

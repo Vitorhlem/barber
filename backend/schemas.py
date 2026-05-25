@@ -1,15 +1,19 @@
 from pydantic import BaseModel
 from typing import Optional, List
-from datetime import date
+from datetime import datetime
 
-# Schemas para Usuário
+# --- USUÁRIOS ---
 class UsuarioBase(BaseModel):
     nome: str
     email: str
     tipo: str
-    crmv: Optional[str] = None
+    telefone: Optional[str] = None
 
 class UsuarioCreate(UsuarioBase):
+    senha: str
+
+class UsuarioLogin(BaseModel):
+    email: str
     senha: str
 
 class UsuarioResponse(UsuarioBase):
@@ -17,45 +21,27 @@ class UsuarioResponse(UsuarioBase):
     class Config:
         from_attributes = True
 
-# Schemas para Registro (Vacinas, Consultas, Peso)
-class RegistroBase(BaseModel):
-    tipo: str
-    nome: str
-    data: date
-    proxima_data: Optional[date] = None
-    peso: Optional[float] = None
-    anotacoes: Optional[str] = None
-    veterinario_id: Optional[int] = None
+# --- AGENDAMENTOS ---
+class AgendamentoBase(BaseModel):
+    barbeiro_id: int
+    servico: str
+    data_hora: datetime
+    preco: Optional[float] = 0.0
 
-class RegistroCreate(RegistroBase):
+class AgendamentoCreate(AgendamentoBase):
     pass
 
-class RegistroResponse(RegistroBase):
+class AgendamentoUpdate(BaseModel):
+    status: str
+
+class AgendamentoResponse(AgendamentoBase):
     id: int
-    pet_id: int
+    cliente_id: int
+    status: str
+    cliente_nome: str   
+    barbeiro_nome: str  
+    cliente: UsuarioBase # Adicione isto
+    barbeiro: UsuarioBase # Adicione isto
+
     class Config:
         from_attributes = True
-
-# Schemas para Pet
-class PetBase(BaseModel):
-    nome: str
-    especie: str
-    raca: Optional[str] = None
-    microchip: Optional[str] = None
-    data_nascimento: Optional[date] = None
-    sexo: str
-    foto: Optional[str] = None
-
-class PetCreate(PetBase):
-    pass
-
-class PetResponse(PetBase):
-    id: int
-    tutor_id: int
-    registros: List[RegistroResponse] = []
-    class Config:
-        from_attributes = True
-
-class UsuarioLogin(BaseModel):
-    email: str
-    senha: str
