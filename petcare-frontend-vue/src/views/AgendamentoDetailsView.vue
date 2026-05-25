@@ -1,97 +1,159 @@
 <template>
-  <q-layout view="hHh lpR fFf">
+  <q-layout view="hHh lpR fFf" class="details-layout">
     <q-page-container>
-      <q-page padding class="flex flex-center bg-grey-1">
+      <q-page padding class="flex flex-center details-page">
         
-        <div style="width: 100%; max-width: 768px;">
-          <q-breadcrumbs class="q-mb-lg text-grey-8" active-color="primary">
-            <q-breadcrumbs-el icon="home" label="Painel" class="cursor-pointer" @click="router.push('/dashboard')" />
-            <q-breadcrumbs-el label="Detalhes do Agendamento" />
-          </q-breadcrumbs>
+        <div style="width: 100%; max-width: 800px;">
           
-          <q-card v-if="agendamento" flat bordered class="rounded-borders shadow-1">
-            <q-card-section class="bg-white q-pa-lg">
+          <div class="row items-center q-mb-lg">
+            <q-btn 
+              flat 
+              icon="arrow_back" 
+              label="Voltar ao Painel" 
+              class="back-btn q-mr-md" 
+              @click="router.push('/dashboard')" 
+              no-caps 
+            />
+            <q-breadcrumbs class="text-grey-6 text-weight-medium" active-color="primary">
+              <q-breadcrumbs-el icon="home" class="cursor-pointer" @click="router.push('/dashboard')" />
+              <q-breadcrumbs-el label="Detalhes do Agendamento" />
+            </q-breadcrumbs>
+          </div>
+          
+          <q-card v-if="agendamento" class="details-card shadow-12">
+            
+            <q-card-section class="card-header q-pa-xl">
               <div class="row items-center justify-between">
-                <div>
-                  <div class="text-caption text-grey-6 text-weight-bold letter-spacing">
-                    AGENDAMENTO #{{ agendamento.id }}
+                <div class="row items-center">
+                  <div class="header-icon-wrapper shadow-4 q-mr-lg">
+                    <q-icon name="content_cut" class="header-icon" />
                   </div>
-                  <div class="text-h4 text-weight-bold text-grey-9 q-mt-sm">
-                    {{ agendamento.servico }}
+                  <div>
+                    <div class="text-caption text-white opacity-80 text-weight-bold letter-spacing text-uppercase">
+                      Agendamento #{{ agendamento.id }}
+                    </div>
+                    <div class="text-h4 text-weight-bolder text-white q-mt-xs">
+                      {{ agendamento.servico }}
+                    </div>
                   </div>
                 </div>
-                <q-chip :color="corEstado(agendamento.status)" text-color="white" class="text-weight-bold text-uppercase">
+                
+                <q-chip 
+                  :color="corEstado(agendamento.status)" 
+                  text-color="white" 
+                  size="md"
+                  class="status-chip shadow-2 text-weight-bolder text-uppercase q-px-md q-py-sm"
+                >
                   {{ agendamento.status }}
                 </q-chip>
               </div>
             </q-card-section>
 
-            <q-separator />
-
-            <q-card-section class="q-pa-lg bg-grey-1">
-              <div class="row q-col-gutter-md">
+            <q-card-section class="q-pa-xl bg-white">
+              <div class="row q-col-gutter-xl">
+                
                 <div class="col-12 col-sm-4">
-                  <div class="text-caption text-grey-6 text-weight-bold text-uppercase">Data e Hora</div>
-                  <div class="text-body1 text-weight-medium q-mt-xs">
+                  <div class="info-label">Data e Hora</div>
+                  <div class="info-value q-mt-sm flex items-center">
+                    <q-icon name="event" class="q-mr-sm text-primary" size="20px"/>
                     {{ formatarData(agendamento.data_hora) }}
                   </div>
                 </div>
                 
                 <div class="col-12 col-sm-4">
-                  <div class="text-caption text-grey-6 text-weight-bold text-uppercase">Cliente</div>
-                  <div class="text-body1 text-weight-medium q-mt-xs">
-                    {{ agendamento.cliente_nome }}
+                  <div class="info-label">Perfil do Cliente</div>
+                  
+                  <div class="info-value q-mt-sm flex items-center">
+                    <q-icon name="person" class="q-mr-sm text-primary" size="20px" /> 
+                    {{ agendamento.cliente?.nome || agendamento.cliente_nome }}
                   </div>
+                  
+                  <template v-if="authStore.userType === 'barbeiro' || authStore.userType === 'admin'">
+                    <div v-if="agendamento.cliente?.telefone" class="q-mt-sm">
+                      <a :href="'https://wa.me/' + formatarNumero(agendamento.cliente.telefone)" target="_blank" class="contact-link flex items-center">
+                        <q-icon name="whatsapp" class="q-mr-sm text-positive" size="18px" /> 
+                        {{ agendamento.cliente.telefone }}
+                      </a>
+                    </div>
+                    <div v-if="agendamento.cliente?.email" class="text-body2 text-grey-8 q-mt-sm flex items-center">
+                      <q-icon name="email" class="q-mr-sm text-grey-6" size="18px" /> 
+                      {{ agendamento.cliente.email }}
+                    </div>
+                  </template>
                 </div>
                 
                 <div class="col-12 col-sm-4">
-                  <div class="text-caption text-grey-6 text-weight-bold text-uppercase">Profissional / Barbeiro</div>
-                  <div class="text-body1 text-weight-medium q-mt-xs">
-                    {{ agendamento.barbeiro_nome }}
+                  <div class="info-label">Profissional Responsável</div>
+                  <div class="info-value q-mt-sm flex items-center">
+                    <q-icon name="badge" class="q-mr-sm text-primary" size="20px" />
+                    {{ agendamento.barbeiro?.nome || agendamento.barbeiro_nome }}
                   </div>
                 </div>
+                
               </div>
-            </q-card-section>
 
-            <q-card-section v-if="(authStore.userType === 'barbeiro' || authStore.userType === 'admin') && agendamento.status !== 'Cancelado'" class="bg-blue-grey-1 q-pa-lg" style="border-top: 1px solid #e0e0e0;">
-              <div class="text-h6 text-primary text-weight-bold q-mb-md">Gestão do Atendimento</div>
-              <div class="row q-gutter-md">
+              <q-separator class="separator-custom q-my-xl" />
+
+              <div 
+                v-if="(authStore.userType === 'barbeiro' || authStore.userType === 'admin') && agendamento.status !== 'Cancelado'" 
+                class="management-section q-pa-lg"
+              >
+                <div class="text-h6 text-primary text-weight-bolder q-mb-md flex items-center">
+                  <q-icon name="settings_suggest" class="q-mr-sm" size="24px"/> Gestão do Atendimento
+                </div>
+                <div class="row q-gutter-md">
+                  <q-btn 
+                    v-if="agendamento.status === 'Pendente'"
+                    color="primary" 
+                    icon="thumb_up" 
+                    label="Confirmar Agendamento" 
+                    class="action-btn shadow-3"
+                    @click="alterarEstado('Confirmado')" 
+                    unelevated
+                    no-caps
+                  />
+                  <q-btn 
+                    v-if="agendamento.status === 'Confirmado' || agendamento.status === 'Pendente'"
+                    color="positive" 
+                    icon="check_circle" 
+                    label="Marcar como Concluído" 
+                    class="action-btn shadow-3"
+                    @click="alterarEstado('Concluído')" 
+                    unelevated
+                    no-caps
+                  />
+                </div>
+              </div>
+
+              <div 
+                v-if="agendamento.status !== 'Cancelado' && agendamento.status !== 'Concluído'" 
+                class="cancel-section q-pa-lg q-mt-lg"
+              >
+                <div class="text-h6 text-negative text-weight-bolder q-mb-xs flex items-center">
+                  <q-icon name="warning" class="q-mr-sm" size="24px"/> Zona de Cancelamento
+                </div>
+                <div class="text-body2 text-grey-9 q-mb-md">
+                  O horário será libertado na agenda imediatamente. Esta ação não poderá ser revertida.
+                </div>
                 <q-btn 
-                  v-if="agendamento.status === 'Pendente'"
-                  color="primary" 
-                  icon="thumb_up" 
-                  label="Confirmar Agendamento" 
-                  @click="alterarEstado('Confirmado')" 
-                  unelevated
-                />
-                <q-btn 
-                  v-if="agendamento.status === 'Confirmado' || agendamento.status === 'Pendente'"
-                  color="positive" 
-                  icon="check_circle" 
-                  label="Marcar como Concluído" 
-                  @click="alterarEstado('Concluído')" 
-                  unelevated
+                  outline 
+                  color="negative" 
+                  label="Cancelar Agendamento" 
+                  icon="cancel" 
+                  class="action-btn-outline"
+                  no-caps 
+                  @click="confirmarCancelamento" 
                 />
               </div>
-            </q-card-section>
 
-            <q-card-section v-if="agendamento.status !== 'Cancelado' && agendamento.status !== 'Concluído'" class="bg-red-1 q-pa-lg" style="border-top: 1px solid #fecaca;">
-              <div class="text-h6 text-negative text-weight-bold q-mb-sm">Cancelar Agendamento</div>
-              <div class="text-body2 text-grey-8 q-mb-md">O horário será libertado e a ação não poderá ser revertida.</div>
-              <q-btn 
-                outline 
-                color="negative" 
-                label="Cancelar Agendamento" 
-                icon="cancel" 
-                no-caps 
-                @click="confirmarCancelamento" 
-              />
             </q-card-section>
           </q-card>
           
           <div v-else class="flex flex-center q-pa-xl">
-            <q-spinner-dots color="primary" size="40px" />
+            <q-spinner-tail color="primary" size="3em" />
+            <div class="text-grey-6 q-ml-md text-weight-medium">A carregar detalhes...</div>
           </div>
+
         </div>
 
       </q-page>
@@ -114,17 +176,12 @@ const $q = useQuasar()
 
 const agendamento = ref<any>(null)
 
-onMounted(() => {
-  const idAgendamento = Number(route.params.id)
-  agendamento.value = agendamentoStore.agendamentos.find((a: any) => a.id === idAgendamento)
-  
-  if (!agendamento.value) {
-    router.push('/dashboard')
-  }
-})
-
 const formatarData = (dataStr: string) => {
   return new Date(dataStr).toLocaleString('pt-PT', { dateStyle: 'full', timeStyle: 'short' })
+}
+
+const formatarNumero = (numero: string) => {
+  return numero.replace(/\D/g, '')
 }
 
 const corEstado = (status: string) => {
@@ -137,7 +194,6 @@ const corEstado = (status: string) => {
 
 const alterarEstado = async (novoEstado: string) => {
   try {
-    // Envia apenas o novo estado esperado pelo AgendamentoUpdate
     const response = await fetch(`http://localhost:8000/agendamentos/${agendamento.value.id}`, { 
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -147,7 +203,6 @@ const alterarEstado = async (novoEstado: string) => {
     if (!response.ok) throw new Error('Falha ao atualizar')
     
     agendamento.value.status = novoEstado
-    
     await agendamentoStore.fetchAgendamentos() 
     
     $q.notify({ type: 'positive', message: `Agendamento alterado para ${novoEstado}`, position: 'top' })
@@ -155,6 +210,7 @@ const alterarEstado = async (novoEstado: string) => {
     $q.notify({ type: 'negative', message: 'Erro ao atualizar o estado.', position: 'top' })
   }
 }
+
 const confirmarCancelamento = () => {
   $q.dialog({
     title: 'Confirmar Cancelamento',
@@ -177,18 +233,167 @@ const confirmarCancelamento = () => {
 onMounted(async () => {
   const idAgendamento = Number(route.params.id)
   
-  // Tente buscar da API para garantir que tem todos os campos (cliente e barbeiro)
   try {
     const response = await fetch(`http://localhost:8000/agendamentos/${idAgendamento}`)
     if (!response.ok) throw new Error('Não encontrado')
     agendamento.value = await response.json()
   } catch (error) {
-    // Se falhar, volta para o dashboard
     router.push('/dashboard')
   }
 })
 </script>
 
 <style scoped>
-.letter-spacing { letter-spacing: 1px; }
+/* =======================================================
+   VARIÁVEIS DE COR E ESTILO (FÁCEIS DE ALTERAR)
+======================================================= */
+.details-layout {
+  --cor-fundo-pagina: #f1f5f9;
+  --cor-cartao-bg: #ffffff;
+  
+  /* Gradiente do Cabeçalho */
+  --cor-header-inicio: var(--q-primary);
+  --cor-header-fim: #1e3a8a; /* Azul mais escuro */
+  
+  /* Cores de Texto */
+  --cor-texto-primario: #0f172a;
+  --cor-texto-secundario: #64748b;
+  
+  /* Bordas e Sombras */
+  --borda-raio: 20px;
+  --borda-raio-pequeno: 12px;
+  --borda-cor: #e2e8f0;
+}
+
+/* =======================================================
+   ESTILOS GERAIS DA PÁGINA
+======================================================= */
+.details-page {
+  background-color: var(--cor-fundo-pagina);
+  min-height: 100vh;
+}
+
+.back-btn {
+  color: var(--cor-texto-secundario) !important;
+  font-weight: 700;
+  border-radius: 8px;
+  background-color: rgba(100, 116, 139, 0.1);
+  transition: all 0.2s;
+}
+.back-btn:hover {
+  background-color: rgba(100, 116, 139, 0.2);
+  color: var(--cor-texto-primario) !important;
+}
+
+.letter-spacing {
+  letter-spacing: 1px;
+}
+.opacity-80 {
+  opacity: 0.8;
+}
+
+/* =======================================================
+   CARTÃO PRINCIPAL
+======================================================= */
+.details-card {
+  background: var(--cor-cartao-bg);
+  border-radius: var(--borda-raio);
+  overflow: hidden;
+  border: none;
+}
+
+/* Cabeçalho do Cartão */
+.card-header {
+  background: linear-gradient(135deg, var(--cor-header-inicio) 0%, var(--cor-header-fim) 100%);
+}
+
+.header-icon-wrapper {
+  width: 64px;
+  height: 64px;
+  background-color: rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(5px);
+}
+
+.header-icon {
+  font-size: 32px;
+  color: white;
+}
+
+.status-chip {
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+/* =======================================================
+   INFORMAÇÕES E TEXTOS
+======================================================= */
+.info-label {
+  color: var(--cor-texto-secundario);
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 0.8rem;
+  letter-spacing: 0.5px;
+}
+
+.info-value {
+  color: var(--cor-texto-primario);
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.separator-custom {
+  background-color: var(--borda-cor);
+}
+
+/* Link de Contacto (WhatsApp) */
+.contact-link {
+  display: inline-flex;
+  padding: 6px 12px;
+  background-color: #f0fdf4; /* Fundo verde clarinho */
+  color: #166534; /* Texto verde escuro */
+  border-radius: 8px;
+  text-decoration: none;
+  font-weight: 600;
+  transition: background-color 0.2s;
+}
+.contact-link:hover {
+  background-color: #dcfce7;
+}
+
+/* =======================================================
+   SEÇÕES DE AÇÃO (GESTÃO E CANCELAMENTO)
+======================================================= */
+.management-section {
+  background-color: #f8fafc;
+  border: 1px solid var(--borda-cor);
+  border-radius: var(--borda-raio-pequeno);
+}
+
+.cancel-section {
+  background-color: #fef2f2;
+  border: 1px dashed #fca5a5;
+  border-radius: var(--borda-raio-pequeno);
+}
+
+/* Botões */
+.action-btn {
+  border-radius: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  transition: transform 0.2s;
+}
+.action-btn:hover {
+  transform: translateY(-2px);
+}
+
+.action-btn-outline {
+  border-radius: 10px;
+  font-weight: 700;
+  border-width: 2px;
+  background-color: white;
+}
 </style>

@@ -1,5 +1,5 @@
 # models.py
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Float
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Float, Boolean
 from sqlalchemy.orm import relationship
 from database import Base
 import datetime
@@ -17,7 +17,6 @@ class Usuario(Base):
     agendamentos_como_cliente = relationship("Agendamento", foreign_keys='Agendamento.cliente_id', back_populates="cliente")
     agendamentos_como_barbeiro = relationship("Agendamento", foreign_keys='Agendamento.barbeiro_id', back_populates="barbeiro")
 
-
 class Agendamento(Base):
     __tablename__ = "agendamentos"
 
@@ -27,12 +26,12 @@ class Agendamento(Base):
     servico = Column(String) 
     data_hora = Column(DateTime, default=datetime.datetime.utcnow)
     status = Column(String, default="Pendente") 
-    preco = Column(Float, default=0.0) # <--- NOVO CAMPO FINANCEIRO
-    google_event_id = Column(String, nullable=True) # ADICIONE ESTA LINHA
+    preco = Column(Float, default=0.0)
+    google_event_id = Column(String, nullable=True)
+    
     cliente = relationship("Usuario", foreign_keys=[cliente_id], back_populates="agendamentos_como_cliente")
     barbeiro = relationship("Usuario", foreign_keys=[barbeiro_id], back_populates="agendamentos_como_barbeiro")
-    cliente = relationship("Usuario", foreign_keys=[cliente_id])
-    barbeiro = relationship("Usuario", foreign_keys=[barbeiro_id])
+    
     @property
     def cliente_nome(self):
         return self.cliente.nome if self.cliente else "Desconhecido"
@@ -40,7 +39,27 @@ class Agendamento(Base):
     @property
     def barbeiro_nome(self):
         return self.barbeiro.nome if self.barbeiro else "Desconhecido"
+
+class BloqueioHorario(Base):
+    __tablename__ = "bloqueios_horario"
     
+    id = Column(Integer, primary_key=True, index=True)
+    barbeiro_id = Column(Integer, ForeignKey("usuarios.id"))
+    inicio = Column(DateTime)
+    fim = Column(DateTime)
+    motivo = Column(String, default="Pausa")
+    
+    barbeiro = relationship("Usuario", foreign_keys=[barbeiro_id])
+
+class ConfiguracaoBarbeiro(Base):
+    __tablename__ = "configuracoes_barbeiro"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    barbeiro_id = Column(Integer, ForeignKey("usuarios.id"), unique=True)
+    intervalo_minutos = Column(Integer, default=30)
+    horarios_json = Column(String, default='[]')
+    loja_aberta = Column(Boolean, default=True) 
+
 class GoogleToken(Base):
     __tablename__ = "google_tokens"
     id = Column(Integer, primary_key=True, index=True)

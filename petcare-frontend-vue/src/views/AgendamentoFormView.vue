@@ -1,24 +1,37 @@
 <template>
-  <q-layout view="hHh lpR fFf">
+  <q-layout view="hHh lpR fFf" class="form-layout">
     <q-page-container>
-      <q-page padding class="flex flex-center bg-grey-1">
+      <q-page padding class="flex flex-center form-page">
         
-        <div style="width: 100%; max-width: 540px;">
-          <q-btn flat color="grey-8" icon="arrow_back" label="Voltar" class="q-mb-md" @click="router.back()" no-caps />
+        <div style="width: 100%; max-width: 600px;">
+          <q-btn 
+            flat 
+            icon="arrow_back" 
+            label="Voltar" 
+            class="q-mb-md back-btn" 
+            @click="router.back()" 
+            no-caps 
+            ripple
+          />
 
-          <q-card flat bordered class="rounded-borders shadow-2">
-            <q-card-section class="bg-white q-pa-lg">
-              <div class="text-h5 text-weight-bold text-grey-9">Marcar Horário</div>
-              <div class="text-subtitle2 text-grey-6">Selecione o profissional e o horário disponível.</div>
+          <q-card class="form-card shadow-12">
+            
+            <q-card-section class="form-header text-center q-pa-xl">
+              <div class="header-icon-wrapper shadow-3 q-mx-auto q-mb-md">
+                <q-icon name="calendar_month" class="header-icon" />
+              </div>
+              <div class="text-h4 text-weight-bolder text-white letter-spacing">Marcar Horário</div>
+              <div class="text-subtitle1 text-white text-weight-medium q-mt-sm opacity-80">
+                Selecione o profissional e o horário ideal para si.
+              </div>
             </q-card-section>
 
-            <q-separator />
-
-            <q-card-section class="q-pa-lg">
+            <q-card-section class="q-pa-xl">
               <q-form @submit.prevent="submeterAgendamento" class="q-gutter-y-lg">
                 
-                <div class="row q-col-gutter-md">
+                <div class="row q-col-gutter-lg">
                   <div class="col-12 col-sm-6">
+                    <div class="text-subtitle2 text-weight-bold q-mb-sm text-grey-8">Profissional</div>
                     <q-select
                       v-model="form.barbeiro_id"
                       :options="listaBarbeiros"
@@ -26,51 +39,58 @@
                       option-label="nome"
                       emit-value
                       map-options
-                      label="Profissional"
+                      label="Escolha quem o vai atender"
                       outlined
                       color="primary"
+                      class="custom-input"
                       hide-bottom-space
                       :loading="carregandoBarbeiros"
                       :rules="[val => !!val || 'Obrigatório']"
                     >
-                      <template v-slot:prepend><q-icon name="badge" /></template>
+                      <template v-slot:prepend><q-icon name="badge" color="grey-6" /></template>
                     </q-select>
                   </div>
                   
                   <div class="col-12 col-sm-6">
+                    <div class="text-subtitle2 text-weight-bold q-mb-sm text-grey-8">Serviço</div>
                     <q-select
                       v-model="form.servico"
                       :options="Object.keys(tabelaPrecos)"
-                      label="Serviço"
+                      label="Selecione o serviço"
                       outlined
                       color="primary"
+                      class="custom-input"
                       hide-bottom-space
                       :rules="[val => !!val || 'Obrigatório']"
                     >
-                      <template v-slot:prepend><q-icon name="content_cut" /></template>
+                      <template v-slot:prepend><q-icon name="content_cut" color="grey-6" /></template>
                       <template v-slot:append v-if="form.servico">
-                        <q-badge color="positive">{{ formatarPreco(tabelaPrecos[form.servico]) }}</q-badge>
+                        <q-badge class="price-badge shadow-1">{{ formatarPreco(tabelaPrecos[form.servico]) }}</q-badge>
                       </template>
                     </q-select>
                   </div>
                 </div>
 
+                <q-separator class="separator-custom q-my-md" />
+
                 <div>
+                  <div class="text-subtitle2 text-weight-bold q-mb-sm text-grey-8">Data do Atendimento</div>
                   <q-input
                     v-model="dataSelecionada"
                     type="date"
-                    label="Data do Atendimento"
                     outlined
                     color="primary"
+                    class="custom-input"
                     hide-bottom-space
                     :min="dataMinima"
                     :rules="[val => !!val || 'A data é obrigatória']"
                   />
                 </div>
 
-                <div v-if="dataSelecionada && form.barbeiro_id" class="q-pa-md bg-blue-grey-1 rounded-borders" style="border: 1px solid #eceff1;">
-                  <div class="text-subtitle2 text-grey-9 text-weight-bold q-mb-md">
-                    <q-icon name="schedule" class="q-mr-xs" size="20px"/> Horários Disponíveis
+                <div v-if="dataSelecionada && form.barbeiro_id && (!configuracaoBarbeiroSelecionado || configuracaoBarbeiroSelecionado.loja_aberta)" class="time-slots-container q-pa-lg rounded-borders shadow-1">
+                  <div class="text-subtitle1 text-weight-bold text-primary q-mb-md flex items-center">
+                    <q-icon name="schedule" class="q-mr-sm" size="24px"/> 
+                    Horários Disponíveis
                   </div>
                   
                   <div class="row q-gutter-sm">
@@ -81,27 +101,38 @@
                       :color="horaSelecionada === hora ? 'primary' : 'white'"
                       :text-color="horaSelecionada === hora ? 'white' : 'grey-9'"
                       :outline="horaSelecionada !== hora"
-                      class="col-auto text-weight-bold shadow-1"
-                      style="min-width: 75px;"
+                      class="time-btn col-auto text-weight-bold"
+                      style="min-width: 80px;"
                       @click="horaSelecionada = hora"
+                      unelevated
                     />
                     
-                    <div v-if="horariosDisponiveis.length === 0" class="text-negative text-body2 q-pa-sm flex items-center">
-                      <q-icon name="event_busy" size="24px" class="q-mr-sm"/> Sem horários livres neste dia (ou encerrado).
+                    <div v-if="horariosDisponiveis.length === 0" class="empty-time-state q-pa-md flex items-center rounded-borders full-width justify-center">
+                      <q-icon name="event_busy" size="28px" class="q-mr-sm text-grey-6"/> 
+                      <span class="text-grey-7 text-weight-medium">Sem horários livres neste dia.</span>
                     </div>
                   </div>
                 </div>
 
-                <div class="q-mt-md">
+                <div v-if="configuracaoBarbeiroSelecionado && !configuracaoBarbeiroSelecionado.loja_aberta" class="store-closed-banner q-pa-xl text-center shadow-2">
+                  <q-icon name="storefront" size="64px" color="negative" class="q-mb-md" />
+                  <div class="text-h5 text-negative text-weight-bolder letter-spacing">Barbearia Fechada</div>
+                  <div class="text-body1 text-grey-9 q-mt-md text-weight-medium">
+                    Este profissional não está a aceitar agendamentos de momento. Por favor, tente selecionar outro profissional ou volte mais tarde.
+                  </div>
+                </div>
+
+                <div class="q-mt-xl">
                   <q-btn 
                     type="submit" 
                     color="primary" 
-                    class="full-width" 
-                    size="large" 
+                    class="full-width submit-btn shadow-4" 
+                    size="xl" 
                     label="Confirmar Agendamento" 
                     :loading="submetendo" 
-                    :disabled="!formularioValido"
+                    :disabled="!formularioValido || (configuracaoBarbeiroSelecionado && !configuracaoBarbeiroSelecionado.loja_aberta)"
                     unelevated 
+                    no-caps
                   />
                 </div>
               </q-form>
@@ -142,41 +173,70 @@ const form = ref({
 const dataSelecionada = ref('')
 const horaSelecionada = ref('')
 const horariosOcupados = ref<string[]>([])
+const bloqueiosDoProfissional = ref<any[]>([])
+const configuracaoBarbeiroSelecionado = ref<any>(null)
 
-const dataMinima = new Date().toISOString().split('T')[0]
-
-const gerarTodosHorarios = () => {
-  const slots = []
-  for (let h = 8; h <= 18; h++) {
-    const horaStr = h.toString().padStart(2, '0')
-    slots.push(`${horaStr}:00`)
-    slots.push(`${horaStr}:30`)
-  }
-  return slots
-}
-const todosHorariosBase = gerarTodosHorarios()
-
-// Filtro de disponibilidade à prova de timezone
-const horariosDisponiveis = computed(() => {
-  if (!dataSelecionada.value) return []
-  
-  const dataObj = new Date(dataSelecionada.value + 'T00:00:00')
-  if (dataObj.getDay() === 0) return [] 
-  
+const obterDataAtualLocal = () => {
   const agora = new Date()
   const ano = agora.getFullYear()
   const mes = String(agora.getMonth() + 1).padStart(2, '0')
   const dia = String(agora.getDate()).padStart(2, '0')
-  const hojeLocal = `${ano}-${mes}-${dia}`
+  return `${ano}-${mes}-${dia}`
+}
+const dataMinima = ref(obterDataAtualLocal())
+
+const horariosDisponiveis = computed(() => {
+  if (!dataSelecionada.value || !configuracaoBarbeiroSelecionado.value) return []
   
-  return todosHorariosBase.filter(hora => {
-    // 1. Oculta horários reservados com base na string exata do banco
+  const dataObj = new Date(dataSelecionada.value + 'T00:00:00')
+  const diaSemana = dataObj.getDay()
+  
+  let listaDias = []
+  try {
+    listaDias = JSON.parse(configuracaoBarbeiroSelecionado.value.horarios_json)
+  } catch (e) {
+    return []
+  }
+  
+  const configDia = listaDias.find((d: any) => d.dia === diaSemana)
+  if (!configDia || !configDia.trabalha) return []
+  
+  const slotsDoDia: string[] = []
+  const [startH, startM] = configDia.inicio.split(':').map(Number)
+  const [endH, endM] = configDia.fim.split(':').map(Number)
+  const intervalo = configuracaoBarbeiroSelecionado.value.intervalo_minutos || 30
+  
+  let atualMinutos = startH * 60 + startM
+  const fimMinutos = endH * 60 + endM
+  
+  while (atualMinutos < fimMinutos) {
+    const h = Math.floor(atualMinutos / 60).toString().padStart(2, '0')
+    const m = (atualMinutos % 60).toString().padStart(2, '0')
+    slotsDoDia.push(`${h}:${m}`)
+    atualMinutos += intervalo
+  }
+  
+  const agora = new Date()
+  const hojeLocal = obterDataAtualLocal()
+  
+  return slotsDoDia.filter(hora => {
     if (horariosOcupados.value.includes(hora)) return false
     
-    // 2. Oculta horas que já passaram se for o dia de hoje
+    const slotTime = new Date(`${dataSelecionada.value}T${hora}:00`)
+    for (const bloqueio of bloqueiosDoProfissional.value) {
+      const bInicio = new Date(bloqueio.inicio)
+      const bFim = new Date(bloqueio.fim)
+      if (slotTime >= bInicio && slotTime < bFim) {
+        return false
+      }
+    }
+    
     if (dataSelecionada.value === hojeLocal) {
       const [h, m] = hora.split(':').map(Number)
-      if (h < agora.getHours() || (h === agora.getHours() && m <= agora.getMinutes())) {
+      const horaAtual = agora.getHours()
+      const minutoAtual = agora.getMinutes()
+      
+      if (h < horaAtual || (h === horaAtual && m <= minutoAtual)) {
         return false
       }
     }
@@ -188,7 +248,7 @@ const formularioValido = computed(() => {
   return dataSelecionada.value && horaSelecionada.value && form.value.servico && form.value.barbeiro_id
 })
 
-const formatarPreco = (valor: number) => new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR' }).format(valor)
+const formatarPreco = (valor: number) => new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'BRL' }).format(valor)
 
 onMounted(async () => {
   try {
@@ -199,31 +259,46 @@ onMounted(async () => {
   }
 })
 
-// Busca a agenda do profissional e separa as datas e horas usando extração de strings (sem new Date)
 watch([() => form.value.barbeiro_id, dataSelecionada], async ([novoProfissionalId, novaData]) => {
   horaSelecionada.value = '' 
   const idReal = typeof novoProfissionalId === 'object' ? (novoProfissionalId as any)?.id : novoProfissionalId
   
   if (!idReal || !novaData) {
     horariosOcupados.value = []
+    bloqueiosDoProfissional.value = []
+    configuracaoBarbeiroSelecionado.value = null
     return
   }
   
   try {
-    const res = await fetch(`http://localhost:8000/agendamentos/barbeiro/${idReal}`)
-    if (res.ok) {
-      const agendamentos = await res.json()
+    const [resAgendamentos, resBloqueios, resConfig] = await Promise.all([
+      fetch(`http://localhost:8000/agendamentos/barbeiro/${idReal}`),
+      fetch(`http://localhost:8000/bloqueios/barbeiro/${idReal}`),
+      fetch(`http://localhost:8000/configuracao/${idReal}`)
+    ])
+
+    if (resConfig.ok) {
+      configuracaoBarbeiroSelecionado.value = await resConfig.json()
+    }
+
+    if (resBloqueios.ok) {
+      bloqueiosDoProfissional.value = await resBloqueios.json()
+    } else {
+      bloqueiosDoProfissional.value = []
+    }
+
+    if (resAgendamentos.ok) {
+      const agendamentos = await resAgendamentos.json()
       const ocupados: string[] = []
       
       agendamentos.forEach((a: any) => {
         if (a.status?.toLowerCase() !== 'cancelado') {
-          // Ex: "2026-05-26T11:00:00" ou "2026-05-26 11:00:00"
           const dataNormalizada = a.data_hora.replace('Z', '').replace(' ', 'T')
           const partes = dataNormalizada.split('T')
           
           if (partes.length === 2) {
             const dataAgendamento = partes[0]
-            const horaAgendamento = partes[1].substring(0, 5) // HH:MM
+            const horaAgendamento = partes[1].substring(0, 5) 
             
             if (dataAgendamento === novaData) {
               ocupados.push(horaAgendamento)
@@ -234,7 +309,7 @@ watch([() => form.value.barbeiro_id, dataSelecionada], async ([novoProfissionalI
       horariosOcupados.value = ocupados
     }
   } catch (err) {
-    console.error("Erro ao verificar disponibilidade:", err)
+    console.error("Erro ao verificar disponibilidade ou bloqueios:", err)
   }
 })
 
@@ -251,7 +326,6 @@ const submeterAgendamento = async () => {
       barbeiro_id: idProfissional,
       servico: form.value.servico,
       preco: Number(tabelaPrecos[form.value.servico]) || 0,
-      // Envia estritamente o texto escolhido, ignorando timezones do navegador
       data_hora: `${dataSelecionada.value}T${horaSelecionada.value}:00`
     }
     
@@ -279,3 +353,139 @@ const submeterAgendamento = async () => {
   }
 }
 </script>
+
+<style scoped>
+/* =======================================================
+   VARIÁVEIS DE COR E ESTILO (FÁCEIS DE ALTERAR)
+======================================================= */
+.form-layout {
+  --cor-fundo-pagina: #f1f5f9;
+  --cor-cartao-bg: #ffffff;
+  
+  /* Cores do Cabeçalho do Cartão */
+  --cor-header-inicio: var(--q-primary);
+  --cor-header-fim: #1d4ed8;
+  
+  /* Bordas e Sombras */
+  --borda-raio: 20px;
+  --borda-raio-input: 12px;
+  --borda-cor: #e2e8f0;
+}
+
+/* =======================================================
+   ESTILOS GERAIS
+======================================================= */
+.form-page {
+  background-color: var(--cor-fundo-pagina);
+  min-height: 100vh;
+}
+
+.back-btn {
+  color: #64748b !important;
+  font-weight: 600;
+  border-radius: 8px;
+  transition: background-color 0.2s;
+}
+.back-btn:hover {
+  background-color: rgba(100, 116, 139, 0.1);
+}
+
+.letter-spacing {
+  letter-spacing: -0.5px;
+}
+.opacity-80 {
+  opacity: 0.8;
+}
+
+/* =======================================================
+   CARTÃO PRINCIPAL E CABEÇALHO
+======================================================= */
+.form-card {
+  background: var(--cor-cartao-bg);
+  border-radius: var(--borda-raio);
+  overflow: hidden;
+  border: none;
+}
+
+.form-header {
+  background: linear-gradient(135deg, var(--cor-header-inicio) 0%, var(--cor-header-fim) 100%);
+}
+
+.header-icon-wrapper {
+  width: 64px;
+  height: 64px;
+  background-color: rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(5px);
+}
+
+.header-icon {
+  font-size: 32px;
+  color: white;
+}
+
+/* =======================================================
+   INPUTS E FORMULÁRIO
+======================================================= */
+.custom-input :deep(.q-field__control) {
+  border-radius: var(--borda-raio-input);
+  background-color: #f8fafc;
+}
+
+.separator-custom {
+  background-color: var(--borda-cor);
+}
+
+.price-badge {
+  font-size: 14px;
+  font-weight: bold;
+  padding: 6px 10px;
+  border-radius: 8px;
+}
+
+/* =======================================================
+   SELEÇÃO DE HORÁRIOS
+======================================================= */
+.time-slots-container {
+  background-color: #f8fafc;
+  border: 1px solid var(--borda-cor);
+}
+
+.time-btn {
+  border-radius: 10px;
+  transition: all 0.2s ease;
+}
+.time-btn:not(.q-btn--outline) {
+  box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2), 0 2px 4px -1px rgba(37, 99, 235, 0.1);
+}
+.time-btn:hover {
+  transform: translateY(-2px);
+}
+
+.empty-time-state {
+  background-color: #f1f5f9;
+  border: 1px dashed #cbd5e1;
+}
+
+/* =======================================================
+   ESTADOS DE ERRO / FECHADO
+======================================================= */
+.store-closed-banner {
+  background-color: #fef2f2;
+  border: 2px dashed #fecaca;
+  border-radius: var(--borda-raio-input);
+}
+
+.submit-btn {
+  border-radius: var(--borda-raio-input);
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  transition: transform 0.2s;
+}
+.submit-btn:not(:disabled):hover {
+  transform: translateY(-2px);
+}
+</style>

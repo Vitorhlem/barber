@@ -1,58 +1,81 @@
 <template>
   <q-layout view="lHh Lpr lFf">
     <q-page-container>
-      <q-page class="flex flex-center bg-grey-2">
+      <q-page class="flex flex-center login-page q-pa-md">
         
-        <q-card class="q-pa-lg shadow-2 rounded-borders" style="width: 100%; max-width: 420px;">
-          <q-card-section class="text-center">
-            <q-avatar size="64px" color="primary" text-color="white" icon="content_cut" />
-            <div class="text-h5 q-mt-md text-weight-bold">BarberBase</div>
-            <div class="text-subtitle2 text-grey-7">Inicie sessão para gerir a sua agenda</div>
+        <q-card class="login-card shadow-12">
+          <q-card-section class="text-center q-pt-xl q-pb-sm">
+            <div class="logo-circle shadow-3">
+              <q-icon name="content_cut" class="logo-icon" />
+            </div>
+            <div class="text-h4 q-mt-lg text-weight-bolder title-text">BarberBase</div>
+            <div class="text-subtitle2 q-mt-sm subtitle-text text-weight-medium">O seu estilo, o nosso tempo.</div>
           </q-card-section>
 
-          <q-card-section>
-            <q-form @submit.prevent="efetuarLogin" class="q-gutter-md">
-              <q-input
-                v-model="email"
-                label="E-mail"
-                type="email"
-                outlined
-                color="primary"
-                :rules="[val => !!val || 'O e-mail é obrigatório']"
-              >
-                <template v-slot:prepend>
-                  <q-icon name="email" />
-                </template>
-              </q-input>
+          <q-tabs
+            v-model="aba"
+            dense
+            class="custom-tabs q-mx-lg q-mt-sm q-mb-md"
+            active-color="primary"
+            indicator-color="primary"
+            align="justify"
+            narrow-indicator
+          >
+            <q-tab name="login" label="Iniciar Sessão" no-caps class="text-weight-bold" />
+            <q-tab name="registo" label="Criar Conta" no-caps class="text-weight-bold" />
+          </q-tabs>
 
-              <q-input
-                v-model="senha"
-                label="Palavra-passe"
-                type="password"
-                outlined
-                color="primary"
-                :rules="[val => !!val || 'A palavra-passe é obrigatória']"
-              >
-                <template v-slot:prepend>
-                  <q-icon name="lock" />
-                </template>
-              </q-input>
+          <q-tab-panels v-model="aba" animated class="bg-transparent">
+            
+            <q-tab-panel name="login" class="q-px-xl q-pb-xl q-pt-none">
+              <q-form @submit.prevent="efetuarLogin" class="q-gutter-y-md q-mt-sm">
+                
+                <q-input v-model="emailLogin" label="E-mail" type="email" outlined color="primary" class="custom-input" :rules="[val => !!val || 'O e-mail é obrigatório']" hide-bottom-space>
+                  <template v-slot:prepend><q-icon name="email" color="grey-6" /></template>
+                </q-input>
 
-              <div v-if="authStore.erro" class="text-negative text-center text-weight-medium">
-                {{ authStore.erro }}
-              </div>
+                <q-input v-model="senhaLogin" label="Palavra-passe" type="password" outlined color="primary" class="custom-input" :rules="[val => !!val || 'A palavra-passe é obrigatória']" hide-bottom-space>
+                  <template v-slot:prepend><q-icon name="lock" color="grey-6" /></template>
+                </q-input>
 
-              <q-btn
-                type="submit"
-                color="primary"
-                class="full-width q-mt-md"
-                size="large"
-                label="Iniciar Sessão"
-                :loading="carregando"
-                unelevated
-              />
-            </q-form>
-          </q-card-section>
+                <div v-if="authStore.erro && aba === 'login'" class="alert-box">
+                  <q-icon name="error" class="q-mr-xs" size="18px" /> {{ authStore.erro }}
+                </div>
+
+                <q-btn type="submit" color="primary" class="full-width q-mt-lg submit-btn" size="lg" label="Entrar" :loading="carregando" unelevated no-caps />
+              
+              </q-form>
+            </q-tab-panel>
+
+            <q-tab-panel name="registo" class="q-px-xl q-pb-xl q-pt-none">
+              <q-form @submit.prevent="efetuarRegisto" class="q-gutter-y-md q-mt-xs">
+                
+                <q-input v-model="formRegisto.nome" label="Nome Completo" outlined color="primary" class="custom-input" :rules="[val => !!val || 'O nome é obrigatório']" hide-bottom-space>
+                  <template v-slot:prepend><q-icon name="person" color="grey-6" /></template>
+                </q-input>
+
+                <q-input v-model="formRegisto.telefone" label="Telemóvel / WhatsApp" type="tel" outlined color="primary" class="custom-input" hint="Para recebermos o seu contacto" hide-bottom-space>
+                  <template v-slot:prepend><q-icon name="phone" color="grey-6" /></template>
+                </q-input>
+
+                <q-input v-model="formRegisto.email" label="E-mail" type="email" outlined color="primary" class="custom-input" :rules="[val => !!val || 'O e-mail é obrigatório']" hide-bottom-space>
+                  <template v-slot:prepend><q-icon name="email" color="grey-6" /></template>
+                </q-input>
+
+                <q-input v-model="formRegisto.senha" label="Criar Palavra-passe" type="password" outlined color="primary" class="custom-input" :rules="[val => val.length >= 6 || 'Mínimo de 6 caracteres']" hide-bottom-space>
+                  <template v-slot:prepend><q-icon name="lock" color="grey-6" /></template>
+                </q-input>
+
+                <div v-if="erroRegisto" class="alert-box">
+                  <q-icon name="error" class="q-mr-xs" size="18px" /> {{ erroRegisto }}
+                </div>
+
+                <q-btn type="submit" color="primary" class="full-width q-mt-lg submit-btn" size="lg" label="Registar e Entrar" :loading="carregando" unelevated no-caps />
+              
+              </q-form>
+            </q-tab-panel>
+          </q-tab-panels>
+
         </q-card>
 
       </q-page>
@@ -63,19 +86,157 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useAuthStore } from '@/stores/authStore'
+import { useQuasar } from 'quasar'
 
 const authStore = useAuthStore()
-const email = ref('')
-const senha = ref('')
+const $q = useQuasar()
+
+const aba = ref('login')
 const carregando = ref(false)
+
+// Campos de Login
+const emailLogin = ref('')
+const senhaLogin = ref('')
+
+// Campos de Registo
+const erroRegisto = ref('')
+const formRegisto = ref({
+  nome: '',
+  telefone: '',
+  email: '',
+  senha: '',
+  tipo: 'cliente'
+})
 
 const efetuarLogin = async () => {
   carregando.value = true
-  await authStore.login(email.value, senha.value)
+  await authStore.login(emailLogin.value, senhaLogin.value)
   carregando.value = false
+}
+
+const efetuarRegisto = async () => {
+  erroRegisto.value = ''
+  carregando.value = true
+  
+  try {
+    const response = await fetch('http://localhost:8000/usuarios/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(formRegisto.value)
+    })
+    
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(errorData.detail || 'Erro ao criar conta.')
+    }
+
+    $q.notify({ type: 'positive', message: 'Conta criada com sucesso!', position: 'top' })
+    
+    await authStore.login(formRegisto.value.email, formRegisto.value.senha)
+
+  } catch (error: any) {
+    erroRegisto.value = error.message
+  } finally {
+    carregando.value = false
+  }
 }
 </script>
 
 <style scoped>
-/* O Quasar remove a necessidade de 90% do CSS manual! */
+/* =======================================================
+   VARIÁVEIS DE COR E ESTILO (FÁCEIS DE ALTERAR)
+======================================================= */
+.login-page {
+  /* Altere as cores do gradiente de fundo aqui */
+  --cor-fundo-inicio: #1a1a2e; 
+  --cor-fundo-fim: #16213e;    
+  
+  /* Cor e estilo do cartão principal */
+  --cor-cartao-bg: rgba(255, 255, 255, 0.97);
+  --borda-cartao: 24px;
+  
+  /* Cores de Texto */
+  --cor-texto-titulo: #1f2937;
+  --cor-texto-subtitulo: #6b7280;
+  
+  /* Destaque / Identidade Visual */
+  --cor-destaque: var(--q-primary); 
+  --cor-destaque-hover: #155bb5;
+
+  background: linear-gradient(135deg, var(--cor-fundo-inicio) 0%, var(--cor-fundo-fim) 100%);
+  min-height: 100vh;
+}
+
+/* =======================================================
+   ESTILOS DOS COMPONENTES
+======================================================= */
+.login-card {
+  width: 100%;
+  max-width: 440px;
+  background: var(--cor-cartao-bg);
+  border-radius: var(--borda-cartao);
+  backdrop-filter: blur(10px);
+}
+
+.logo-circle {
+  width: 80px;
+  height: 80px;
+  margin: 0 auto;
+  background-color: var(--cor-destaque);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.3s ease;
+}
+
+.logo-circle:hover {
+  transform: scale(1.05);
+}
+
+.logo-icon {
+  font-size: 40px;
+  color: white;
+}
+
+.title-text {
+  color: var(--cor-texto-titulo);
+  letter-spacing: -1px;
+}
+
+.subtitle-text {
+  color: var(--cor-texto-subtitulo);
+}
+
+.custom-tabs {
+  border-bottom: 2px solid #f1f5f9;
+  color: #94a3b8;
+}
+
+/* Arredonda levemente os campos de input */
+.custom-input :deep(.q-field__control) {
+  border-radius: 12px;
+}
+
+/* Botão principal arredondado e elegante */
+.submit-btn {
+  border-radius: 12px;
+  font-weight: bold;
+  letter-spacing: 0.5px;
+  transition: background-color 0.3s ease;
+}
+
+/* Caixa de alerta de erro */
+.alert-box {
+  background-color: #fee2e2;
+  color: #b91c1c;
+  border: 1px solid #f87171;
+  padding: 10px;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
 </style>

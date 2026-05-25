@@ -40,8 +40,35 @@ class AgendamentoResponse(AgendamentoBase):
     status: str
     cliente_nome: str   
     barbeiro_nome: str  
-    cliente: UsuarioBase # Adicione isto
-    barbeiro: UsuarioBase # Adicione isto
+    cliente: Optional[UsuarioBase] = None
+    barbeiro: Optional[UsuarioBase] = None
 
+    class Config:
+        from_attributes = True
+
+# --- BLOQUEIOS DE HORÁRIO ---
+class BloqueioBase(BaseModel):
+    barbeiro_id: int
+    inicio: datetime
+    fim: datetime
+    motivo: str
+
+class BloqueioCreate(BloqueioBase):
+    pass
+
+class BloqueioResponse(BloqueioBase):
+    id: int
+    class Config:
+        from_attributes = True
+
+# --- CONFIGURAÇÕES DO BARBEIRO ---
+class ConfiguracaoBarbeiroBase(BaseModel):
+    intervalo_minutos: int
+    horarios_json: str
+    loja_aberta: bool = True
+
+class ConfiguracaoBarbeiroResponse(ConfiguracaoBarbeiroBase):
+    id: int
+    barbeiro_id: int
     class Config:
         from_attributes = True
