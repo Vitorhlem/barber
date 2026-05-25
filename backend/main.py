@@ -268,6 +268,27 @@ async def deletar_bloqueio(bloqueio_id: int, db: Session = Depends(get_db)):
     await manager.broadcast_update(barbeiro_id, "UPDATE_BLOQUEIOS")
     return {"message": "Bloqueio removido"}
 
+@app.get("/produtos/", response_model=List[schemas.ProdutoResponse])
+def listar_produtos(db: Session = Depends(get_db)):
+    return db.query(models.Produto).all()
+
+@app.post("/produtos/", response_model=schemas.ProdutoResponse)
+def criar_produto(produto: schemas.ProdutoCreate, db: Session = Depends(get_db)):
+    db_produto = models.Produto(**produto.model_dump())
+    db.add(db_produto)
+    db.commit()
+    db.refresh(db_produto)
+    return db_produto
+
+@app.delete("/produtos/{produto_id}")
+def deletar_produto(produto_id: int, db: Session = Depends(get_db)):
+    db_produto = db.query(models.Produto).filter(models.Produto.id == produto_id).first()
+    if not db_produto:
+        raise HTTPException(status_code=404, detail="Produto não encontrado")
+    db.delete(db_produto)
+    db.commit()
+    return {"message": "Produto removido"}
+
 # --- ROTAS DE CONFIGURAÇÃO DE HORÁRIO DO BARBEIRO ---
 @app.get("/configuracao/{barbeiro_id}", response_model=schemas.ConfiguracaoBarbeiroResponse)
 def obter_configuracao(barbeiro_id: int, db: Session = Depends(get_db)):

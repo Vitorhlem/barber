@@ -67,3 +67,13 @@ class GoogleToken(Base):
     access_token = Column(String)
     refresh_token = Column(String)
     token_expiry = Column(DateTime)
+
+class Produto(Base):
+    __tablename__ = "produtos"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    nome = Column(String, index=True)
+    descricao = Column(String, nullable=True)
+    preco = Column(Float, default=0.0)
+    categoria = Column(String, index=True)
+    imagem_url = Column(String, nullable=True)

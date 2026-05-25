@@ -3,9 +3,9 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 
 export const useAuthStore = defineStore('auth', () => {
-  const userId = ref<number | null>(Number(localStorage.getItem('barberbase_user_id')) || null)
-  const userType = ref<string>(localStorage.getItem('barberbase_user_tipo') || '')
-  const userName = ref<string>(localStorage.getItem('barberbase_user_nome') || '') // <--- NOVO
+  const userId = ref<number | null>(Number(sessionStorage.getItem('barberbase_user_id')) || null)
+  const userType = ref<string>(sessionStorage.getItem('barberbase_user_tipo') || '')
+  const userName = ref<string>(sessionStorage.getItem('barberbase_user_nome') || '')
   const erro = ref<string | null>(null)
   
   const router = useRouter()
@@ -28,11 +28,11 @@ export const useAuthStore = defineStore('auth', () => {
       
       userId.value = userData.id
       userType.value = userData.tipo
-      userName.value = userData.nome // <--- NOVO
+      userName.value = userData.nome
       
-      localStorage.setItem('barberbase_user_id', String(userData.id))
-      localStorage.setItem('barberbase_user_tipo', userData.tipo)
-      localStorage.setItem('barberbase_user_nome', userData.nome) // <--- NOVO
+      sessionStorage.setItem('barberbase_user_id', String(userData.id))
+      sessionStorage.setItem('barberbase_user_tipo', userData.tipo)
+      sessionStorage.setItem('barberbase_user_nome', userData.nome)
       
       router.push('/dashboard')
     } catch (e: any) {
@@ -43,10 +43,10 @@ export const useAuthStore = defineStore('auth', () => {
   function logout() {
     userId.value = null
     userType.value = ''
-    userName.value = '' // <--- NOVO
-    localStorage.removeItem('barberbase_user_id')
-    localStorage.removeItem('barberbase_user_tipo')
-    localStorage.removeItem('barberbase_user_nome') // <--- NOVO
+    userName.value = ''
+    sessionStorage.removeItem('barberbase_user_id')
+    sessionStorage.removeItem('barberbase_user_tipo')
+    sessionStorage.removeItem('barberbase_user_nome')
     router.push('/login')
   }
 

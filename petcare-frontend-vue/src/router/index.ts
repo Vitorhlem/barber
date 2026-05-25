@@ -33,6 +33,11 @@ const router = createRouter({
       meta: { requerAutenticacao: true }
     },
     {
+      path: '/produtos',
+      name: 'produtos',
+      component: () => import('../views/ProdutosView.vue')
+    },
+    {
       path: '/settings', // <--- ROTA ADICIONADA
       name: 'settings',
       component: SettingsView,

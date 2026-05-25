@@ -18,6 +18,7 @@
           <q-btn v-if="authStore.userType === 'cliente'" color="primary" icon="add" label="Novo Agendamento" unelevated class="action-btn" no-caps @click="router.push('/agendamento/novo')" />
           <q-btn v-if="authStore.userType === 'barbeiro' || authStore.userType === 'admin'" outline color="warning" icon="block" label="Pausa/Bloqueio" class="action-btn-outline" no-caps @click="dialogBloqueio = true" />
           <q-btn outline color="grey-5" text-color="white" icon="logout" label="Sair" class="action-btn-outline text-grey-8" no-caps @click="authStore.logout" />
+          <q-btn outline color="primary" icon="storefront" label="Loja Física" class="action-btn-outline bg-white q-mr-sm" no-caps @click="router.push('/produtos')" />
           <q-btn flat round icon="settings" class="settings-btn" @click="router.push('/settings')" />
         </div>
       </q-toolbar>
@@ -74,6 +75,7 @@
               <q-tab name="proximos" label="Próximos Atendimentos" no-caps class="text-weight-bold" />
               <q-tab v-if="authStore.userType !== 'cliente'" name="calendario" label="Visão de Calendário" no-caps class="text-weight-bold" />
               <q-tab v-if="authStore.userType !== 'cliente'" name="historico" label="Histórico" no-caps class="text-weight-bold" />
+              <q-tab v-if="authStore.userType !== 'cliente'" name="produtos" label="Gestão de Produtos" no-caps class="text-weight-bold" />
             </q-tabs>
             <q-separator class="q-mb-lg separator-custom" />
 
@@ -195,6 +197,37 @@
                 </div>
               </q-tab-panel>
 
+              <q-tab-panel v-if="authStore.userType !== 'cliente'" name="produtos" class="q-px-none q-pt-none">
+                <div class="row justify-between items-center q-mb-md">
+                  <div class="text-h5 text-weight-bold page-title">Catálogo da Loja</div>
+                  <q-btn color="primary" icon="add" label="Novo Produto" unelevated class="action-btn shadow-3" no-caps @click="dialogProduto = true" />
+                </div>
+
+                <div v-if="produtos.length === 0" class="flex flex-center q-pa-xl dash-card empty-state shadow-2">
+                  <q-icon name="inventory_2" size="72px" color="grey-4" />
+                  <div class="text-h6 text-grey-5 q-mt-md full-width text-center text-weight-medium">Nenhum produto cadastrado na vitrine.</div>
+                </div>
+                <div v-else class="row q-col-gutter-lg">
+                  <div class="col-12 col-sm-6 col-md-4" v-for="produto in produtos" :key="produto.id">
+                    <q-card class="dash-card item-card shadow-3" bordered>
+                      <q-card-section>
+                        <div class="row items-center justify-between q-mb-sm">
+                          <q-chip color="primary" text-color="white" size="sm" class="text-weight-bold text-uppercase shadow-1">
+                            {{ produto.categoria }}
+                          </q-chip>
+                          <q-btn flat round color="negative" icon="delete" size="sm" @click="deletarProduto(produto.id)" title="Remover da Vitrine" />
+                        </div>
+                        <div class="text-h6 text-weight-bold item-title q-mb-xs ellipsis">{{ produto.nome }}</div>
+                        <div class="text-body2 text-grey-7 q-mb-md" style="min-height: 40px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
+                          {{ produto.descricao || 'Sem descrição' }}
+                        </div>
+                        <div class="text-h5 text-weight-bolder text-positive">R$ {{ produto.preco.toFixed(2) }}</div>
+                      </q-card-section>
+                    </q-card>
+                  </div>
+                </div>
+              </q-tab-panel>
+
             </q-tab-panels>
           </template>
 
@@ -221,6 +254,34 @@
       </q-card>
     </q-dialog>
 
+    <q-dialog v-model="dialogProduto">
+      <q-card class="dialog-card shadow-12">
+        <q-card-section class="bg-primary text-white">
+          <div class="text-h5 text-weight-bold">Cadastrar Produto</div>
+        </q-card-section>
+
+        <q-card-section class="q-pa-lg q-gutter-y-md">
+          <q-input v-model="novoProduto.nome" label="Nome do Produto (Ex: Pomada Efeito Mate)" outlined color="primary" class="custom-input" />
+          <q-input v-model="novoProduto.descricao" label="Breve Descrição (Opcional)" type="textarea" rows="2" outlined color="primary" class="custom-input" />
+          <q-input v-model="novoProduto.imagem_url" label="URL da Imagem da Internet (Opcional)" placeholder="https://..." outlined color="primary" class="custom-input" />
+          
+          <div class="row q-col-gutter-md">
+            <div class="col-6">
+              <q-input v-model.number="novoProduto.preco" type="number" label="Preço (R$)" outlined color="primary" class="custom-input" />
+            </div>
+            <div class="col-6">
+              <q-select v-model="novoProduto.categoria" :options="categoriasLoja" label="Categoria" outlined color="primary" class="custom-input" />
+            </div>
+          </div>
+        </q-card-section>
+
+        <q-card-actions align="right" class="q-pa-md bg-grey-1">
+          <q-btn flat label="Cancelar" color="grey-8" class="text-weight-bold" v-close-popup no-caps />
+          <q-btn label="Salvar Produto" color="primary" class="text-weight-bold action-btn shadow-2" @click="salvarProduto" v-close-popup unelevated no-caps />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
+
   </q-layout>
 </template>
 
@@ -241,6 +302,12 @@ let ws: WebSocket | null = null
 const dialogBloqueio = ref(false)
 const bloqueios = ref<any[]>([])
 const novoBloqueio = ref({ inicio: '', fim: '', motivo: 'Pausa' })
+
+// VARIÁVEIS DE PRODUTOS
+const dialogProduto = ref(false)
+const produtos = ref<any[]>([])
+const categoriasLoja = ['Bonés', 'Relógios', 'Perfumes', 'Camisas', 'Óleos e Cremes', 'Outros']
+const novoProduto = ref({ nome: '', descricao: '', preco: 0, categoria: 'Outros', imagem_url: '' })
 
 const inicializarWebSocket = () => {
   const userId = authStore.userId 
@@ -308,10 +375,38 @@ const salvarBloqueio = async () => {
   }
 }
 
+// FUNÇÕES DE PRODUTOS
+const fetchProdutos = async () => {
+  try {
+    const res = await fetch('http://localhost:8000/produtos/')
+    if (res.ok) produtos.value = await res.json()
+  } catch (e) { console.error(e) }
+}
+
+const salvarProduto = async () => {
+  try {
+    await fetch('http://localhost:8000/produtos/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(novoProduto.value)
+    })
+    fetchProdutos()
+    novoProduto.value = { nome: '', descricao: '', preco: 0, categoria: 'Outros', imagem_url: '' }
+  } catch (e) { console.error(e) }
+}
+
+const deletarProduto = async (id: number) => {
+  try {
+    await fetch(`http://localhost:8000/produtos/${id}`, { method: 'DELETE' })
+    fetchProdutos()
+  } catch (e) { console.error(e) }
+}
+
 onMounted(() => {
   if (authStore.isAuthenticated()) {
     agendamentoStore.fetchAgendamentos()
     fetchBloqueios()
+    fetchProdutos()
     inicializarWebSocket()
   }
 })

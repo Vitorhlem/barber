@@ -72,3 +72,18 @@ class ConfiguracaoBarbeiroResponse(ConfiguracaoBarbeiroBase):
     barbeiro_id: int
     class Config:
         from_attributes = True
+
+class ProdutoBase(BaseModel):
+    nome: str
+    descricao: Optional[str] = None
+    preco: float
+    categoria: str
+    imagem_url: Optional[str] = None
+
+class ProdutoCreate(ProdutoBase):
+    pass
+
+class ProdutoResponse(ProdutoBase):
+    id: int
+    class Config:
+        from_attributes = True
