@@ -87,3 +87,37 @@ class ProdutoResponse(ProdutoBase):
     id: int
     class Config:
         from_attributes = True
+
+class ConfiguracaoSistemaBase(BaseModel):
+    nome_barbearia: str
+    logo_url: Optional[str] = None
+
+class ConfiguracaoSistemaResponse(ConfiguracaoSistemaBase):
+    id: int
+    class Config:
+        from_attributes = True
+
+class FolgaPontualBase(BaseModel):
+    barbeiro_id: int
+    data: str
+    motivo: Optional[str] = None
+
+class FolgaPontualCreate(FolgaPontualBase):
+    pass
+
+class FolgaPontualResponse(FolgaPontualBase):
+    id: int
+    class Config:
+        from_attributes = True
+
+class ServicoBase(BaseModel):
+    nome: str
+    preco: float
+
+class ServicoCreate(ServicoBase):
+    pass
+
+class ServicoResponse(ServicoBase):
+    id: int
+    class Config:
+        from_attributes = True

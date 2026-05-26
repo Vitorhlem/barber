@@ -6,10 +6,11 @@ import secrets
 import json
 from datetime import datetime, timedelta
 from typing import Dict, List
-
-from fastapi import FastAPI, Depends, HTTPException, WebSocket, WebSocketDisconnect, Request
+import shutil
+from fastapi import FastAPI, Depends, HTTPException, WebSocket, WebSocketDisconnect, Request, UploadFile, File # Atualize esta linha
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
+from fastapi.staticfiles import StaticFiles # Adicione esta linha
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy.exc import IntegrityError
 
@@ -28,7 +29,16 @@ from google.auth.transport.requests import Request as GoogleRequest
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="BarberBase API")
+os.makedirs("uploads", exist_ok=True)
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
+@app.post("/upload/imagem")
+async def upload_imagem(file: UploadFile = File(...)):
+    file_location = f"uploads/{file.filename}"
+    with open(file_location, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+    # Retorna o URL completo para aceder à imagem
+    return {"url": f"http://localhost:8000/uploads/{file.filename}"}
 # --- GERENCIADOR DE WEB SOCKETS ---
 class ConnectionManager:
     def __init__(self):
@@ -268,6 +278,67 @@ async def deletar_bloqueio(bloqueio_id: int, db: Session = Depends(get_db)):
     await manager.broadcast_update(barbeiro_id, "UPDATE_BLOQUEIOS")
     return {"message": "Bloqueio removido"}
 
+@app.get("/folgas/barbeiro/{barbeiro_id}", response_model=List[schemas.FolgaPontualResponse])
+def listar_folgas(barbeiro_id: int, db: Session = Depends(get_db)):
+    return db.query(models.FolgaPontual).filter(models.FolgaPontual.barbeiro_id == barbeiro_id).all()
+
+@app.post("/folgas/", response_model=schemas.FolgaPontualResponse)
+async def criar_folga(folga: schemas.FolgaPontualCreate, db: Session = Depends(get_db)):
+    db_folga = models.FolgaPontual(**folga.model_dump())
+    db.add(db_folga)
+    db.commit()
+    db.refresh(db_folga)
+    await manager.broadcast_update(folga.barbeiro_id, "UPDATE_FOLGAS")
+    return db_folga
+
+@app.delete("/folgas/{folga_id}")
+async def deletar_folga(folga_id: int, db: Session = Depends(get_db)):
+    db_folga = db.query(models.FolgaPontual).filter(models.FolgaPontual.id == folga_id).first()
+    if not db_folga:
+        raise HTTPException(status_code=404, detail="Folga não encontrada")
+    barbeiro_id = db_folga.barbeiro_id
+    db.delete(db_folga)
+    db.commit()
+    await manager.broadcast_update(barbeiro_id, "UPDATE_FOLGAS")
+    return {"message": "Folga removida com sucesso"}
+
+@app.get("/servicos/", response_model=List[schemas.ServicoResponse])
+def listar_servicos(db: Session = Depends(get_db)):
+    servicos = db.query(models.Servico).all()
+    if not servicos:
+        # Inicializa com serviços padrão caso a tabela esteja vazia
+        padroes = [
+            {"nome": "Corte de Cabelo", "preco": 15.00},
+            {"nome": "Barba", "preco": 10.00},
+            {"nome": "Corte + Barba", "preco": 23.00}
+        ]
+        for p in padroes:
+            db.add(models.Servico(**p))
+        db.commit()
+        servicos = db.query(models.Servico).all()
+    return servicos
+
+@app.post("/servicos/", response_model=schemas.ServicoResponse)
+def salvar_ou_atualizar_servico(servico: schemas.ServicoCreate, db: Session = Depends(get_db)):
+    db_servico = db.query(models.Servico).filter(models.Servico.nome == servico.nome).first()
+    if db_servico:
+        db_servico.preco = servico.preco
+    else:
+        db_servico = models.Servico(**servico.model_dump())
+        db.add(db_servico)
+    db.commit()
+    db.refresh(db_servico)
+    return db_servico
+
+@app.delete("/servicos/{servico_id}")
+def deletar_servico(servico_id: int, db: Session = Depends(get_db)):
+    db_servico = db.query(models.Servico).filter(models.Servico.id == servico_id).first()
+    if not db_servico:
+        raise HTTPException(status_code=404, detail="Serviço não encontrado")
+    db.delete(db_servico)
+    db.commit()
+    return {"message": "Serviço removido"}
+
 @app.get("/produtos/", response_model=List[schemas.ProdutoResponse])
 def listar_produtos(db: Session = Depends(get_db)):
     return db.query(models.Produto).all()
@@ -288,6 +359,29 @@ def deletar_produto(produto_id: int, db: Session = Depends(get_db)):
     db.delete(db_produto)
     db.commit()
     return {"message": "Produto removido"}
+
+@app.get("/sistema/config", response_model=schemas.ConfiguracaoSistemaResponse)
+def obter_configuracao_sistema(db: Session = Depends(get_db)):
+    config = db.query(models.ConfiguracaoSistema).first()
+    if not config:
+        config = models.ConfiguracaoSistema(nome_barbearia="BarberBase")
+        db.add(config)
+        db.commit()
+        db.refresh(config)
+    return config
+
+@app.put("/sistema/config", response_model=schemas.ConfiguracaoSistemaResponse)
+def atualizar_configuracao_sistema(config_update: schemas.ConfiguracaoSistemaBase, db: Session = Depends(get_db)):
+    config = db.query(models.ConfiguracaoSistema).first()
+    if not config:
+        config = models.ConfiguracaoSistema(**config_update.model_dump())
+        db.add(config)
+    else:
+        config.nome_barbearia = config_update.nome_barbearia
+        config.logo_url = config_update.logo_url
+    db.commit()
+    db.refresh(config)
+    return config
 
 # --- ROTAS DE CONFIGURAÇÃO DE HORÁRIO DO BARBEIRO ---
 @app.get("/configuracao/{barbeiro_id}", response_model=schemas.ConfiguracaoBarbeiroResponse)

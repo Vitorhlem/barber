@@ -5,10 +5,11 @@
         
         <q-card class="login-card shadow-12">
           <q-card-section class="text-center q-pt-xl q-pb-sm">
-            <div class="logo-circle shadow-3">
-              <q-icon name="content_cut" class="logo-icon" />
+            <div class="logo-circle shadow-3" style="overflow: hidden; background-color: white;">
+              <q-img v-if="sistemaStore.logoUrl" :src="sistemaStore.logoUrl" fit="cover" style="width: 100%; height: 100%;" />
+              <q-icon v-else name="content_cut" class="logo-icon" color="primary" />
             </div>
-            <div class="text-h4 q-mt-lg text-weight-bolder title-text">BarberBase</div>
+            <div class="text-h4 q-mt-lg text-weight-bolder title-text">{{ sistemaStore.nomeBarbearia }}</div>
             <div class="text-subtitle2 q-mt-sm subtitle-text text-weight-medium">O seu estilo, o nosso tempo.</div>
           </q-card-section>
 
@@ -87,7 +88,8 @@
 import { ref } from 'vue'
 import { useAuthStore } from '@/stores/authStore'
 import { useQuasar } from 'quasar'
-
+import { useSistemaStore } from '@/stores/sistemaStore'
+const sistemaStore = useSistemaStore()
 const authStore = useAuthStore()
 const $q = useQuasar()
 

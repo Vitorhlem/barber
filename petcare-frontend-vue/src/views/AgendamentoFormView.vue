@@ -154,16 +154,18 @@ import { useQuasar } from 'quasar'
 const router = useRouter()
 const authStore = useAuthStore()
 const $q = useQuasar()
+const listaServicosBD = ref<any[]>([])
 
+const tabelaPrecos = computed(() => {
+  const mapa: Record<string, number> = {}
+  listaServicosBD.value.forEach(s => {
+    mapa[s.nome] = s.preco
+  })
+  return mapa
+})
 const submetendo = ref(false)
 const carregandoBarbeiros = ref(true)
 const listaBarbeiros = ref<any[]>([])
-
-const tabelaPrecos: Record<string, number> = {
-  'Corte de Cabelo': 15.00,
-  'Barba': 10.00,
-  'Corte + Barba': 23.00
-}
 
 const form = ref({
   barbeiro_id: null,
@@ -174,6 +176,7 @@ const dataSelecionada = ref('')
 const horaSelecionada = ref('')
 const horariosOcupados = ref<string[]>([])
 const bloqueiosDoProfissional = ref<any[]>([])
+const folgasDoProfissional = ref<any[]>([])
 const configuracaoBarbeiroSelecionado = ref<any>(null)
 
 const obterDataAtualLocal = () => {
@@ -187,7 +190,9 @@ const dataMinima = ref(obterDataAtualLocal())
 
 const horariosDisponiveis = computed(() => {
   if (!dataSelecionada.value || !configuracaoBarbeiroSelecionado.value) return []
-  
+  if (folgasDoProfissional.value.some(f => f.data === dataSelecionada.value)) {
+    return [] 
+  }
   const dataObj = new Date(dataSelecionada.value + 'T00:00:00')
   const diaSemana = dataObj.getDay()
   
@@ -252,8 +257,16 @@ const formatarPreco = (valor: number) => new Intl.NumberFormat('pt-PT', { style:
 
 onMounted(async () => {
   try {
+    // Carrega os barbeiros disponíveis
     const response = await fetch('http://localhost:8000/barbeiros/')
     if (response.ok) listaBarbeiros.value = await response.json()
+
+    // Carrega a lista de serviços dinâmica direto do Banco de Dados
+    const resServicos = await fetch('http://localhost:8000/servicos/')
+    if (resServicos.ok) listaServicosBD.value = await resServicos.json()
+    
+  } catch (error) {
+    console.error("Erro no carregamento inicial do formulário", error)
   } finally {
     carregandoBarbeiros.value = false
   }
@@ -266,16 +279,24 @@ watch([() => form.value.barbeiro_id, dataSelecionada], async ([novoProfissionalI
   if (!idReal || !novaData) {
     horariosOcupados.value = []
     bloqueiosDoProfissional.value = []
+    folgasDoProfissional.value = []
     configuracaoBarbeiroSelecionado.value = null
     return
   }
   
   try {
-    const [resAgendamentos, resBloqueios, resConfig] = await Promise.all([
+    const [resAgendamentos, resBloqueios, resConfig, resFolgas] = await Promise.all([
       fetch(`http://localhost:8000/agendamentos/barbeiro/${idReal}`),
       fetch(`http://localhost:8000/bloqueios/barbeiro/${idReal}`),
-      fetch(`http://localhost:8000/configuracao/${idReal}`)
+      fetch(`http://localhost:8000/configuracao/${idReal}`),
+      fetch(`http://localhost:8000/folgas/barbeiro/${idReal}`) 
     ])
+    
+    if (resFolgas.ok) {
+      folgasDoProfissional.value = await resFolgas.json()
+    } else {
+      folgasDoProfissional.value = []
+    }
 
     if (resConfig.ok) {
       configuracaoBarbeiroSelecionado.value = await resConfig.json()
@@ -325,7 +346,8 @@ const submeterAgendamento = async () => {
     const dados = {
       barbeiro_id: idProfissional,
       servico: form.value.servico,
-      preco: Number(tabelaPrecos[form.value.servico]) || 0,
+      // ADICIONAMOS O .value NO tabelaPrecos ABAIXO:
+      preco: Number(tabelaPrecos.value[form.value.servico]) || 0,
       data_hora: `${dataSelecionada.value}T${horaSelecionada.value}:00`
     }
     

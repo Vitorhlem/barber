@@ -2,11 +2,12 @@
   <q-layout view="hHh lpR fFf" class="dashboard-layout">
     <q-header elevated class="dash-header">
       <q-toolbar class="q-px-lg q-py-sm">
-        <div class="logo-circle-small q-mr-sm shadow-2">
-          <q-icon name="content_cut" class="logo-icon-small" />
+        <div class="logo-circle-small q-mr-sm shadow-2" style="overflow: hidden; background-color: white;">
+          <q-img v-if="sistemaStore.logoUrl" :src="sistemaStore.logoUrl" fit="cover" style="width: 100%; height: 100%;" />
+          <q-icon v-else name="content_cut" class="logo-icon-small" color="primary" />
         </div>
         <q-toolbar-title class="text-weight-bold header-title">
-          BarberBase
+          {{ sistemaStore.nomeBarbearia }}
           <div class="text-caption header-subtitle text-weight-medium">
             Olá, {{ authStore.userName || 'Utilizador' }}
             <q-badge v-if="wsConnected" color="positive" rounded class="q-ml-sm shadow-1" title="Conectado em tempo real" />
@@ -16,6 +17,7 @@
         <q-space />
         <div class="q-gutter-sm">
           <q-btn v-if="authStore.userType === 'cliente'" color="primary" icon="add" label="Novo Agendamento" unelevated class="action-btn" no-caps @click="router.push('/agendamento/novo')" />
+          <q-btn v-if="authStore.userType === 'barbeiro' || authStore.userType === 'admin'" outline color="positive" icon="analytics" label="Estatísticas" class="action-btn-outline bg-white q-mr-sm" no-caps @click="router.push('/estatisticas')" />
           <q-btn v-if="authStore.userType === 'barbeiro' || authStore.userType === 'admin'" outline color="warning" icon="block" label="Pausa/Bloqueio" class="action-btn-outline" no-caps @click="dialogBloqueio = true" />
           <q-btn outline color="grey-5" text-color="white" icon="logout" label="Sair" class="action-btn-outline text-grey-8" no-caps @click="authStore.logout" />
           <q-btn outline color="primary" icon="storefront" label="Loja Física" class="action-btn-outline bg-white q-mr-sm" no-caps @click="router.push('/produtos')" />
@@ -75,6 +77,7 @@
               <q-tab name="proximos" label="Próximos Atendimentos" no-caps class="text-weight-bold" />
               <q-tab v-if="authStore.userType !== 'cliente'" name="calendario" label="Visão de Calendário" no-caps class="text-weight-bold" />
               <q-tab v-if="authStore.userType !== 'cliente'" name="historico" label="Histórico" no-caps class="text-weight-bold" />
+              <q-tab v-if="authStore.userType !== 'cliente'" name="servicos_manag" label="Gestão de Serviços" no-caps class="text-weight-bold" />
               <q-tab v-if="authStore.userType !== 'cliente'" name="produtos" label="Gestão de Produtos" no-caps class="text-weight-bold" />
             </q-tabs>
             <q-separator class="q-mb-lg separator-custom" />
@@ -160,6 +163,32 @@
                     </q-timeline>
                   </q-card-section>
                 </q-card>
+              </q-tab-panel>
+
+              <q-tab-panel v-if="authStore.userType !== 'cliente'" name="servicos_manag" class="q-px-none q-pt-none">
+                <div class="row justify-between items-center q-mb-md">
+                  <div class="text-h5 text-weight-bold page-title">Tabela de Preços e Serviços</div>
+                  <q-btn color="primary" icon="add" label="Novo Serviço" unelevated class="action-btn shadow-3" no-caps @click="dialogServico = true" />
+                </div>
+
+                <div v-if="listaServicos.length === 0" class="flex flex-center q-pa-xl dash-card empty-state shadow-2">
+                  <q-icon name="content_cut" size="72px" color="grey-4" />
+                  <div class="text-h6 text-grey-5 q-mt-md full-width text-center text-weight-medium">Nenhum serviço cadastrado.</div>
+                </div>
+                
+                <div v-else class="row q-col-gutter-lg">
+                  <div class="col-12 col-sm-6 col-md-4" v-for="serv in listaServicos" :key="serv.id">
+                    <q-card class="dash-card item-card shadow-3" bordered>
+                      <q-card-section class="row items-center justify-between">
+                        <div>
+                          <div class="text-h6 text-weight-bold item-title q-mb-xs">{{ serv.nome }}</div>
+                          <div class="text-h5 text-weight-bolder text-positive">R$ {{ serv.preco.toFixed(2) }}</div>
+                        </div>
+                        <q-btn flat round color="negative" icon="delete" size="sm" @click="deletarServico(serv.id)" />
+                      </q-card-section>
+                    </q-card>
+                  </div>
+                </div>
               </q-tab-panel>
 
               <q-tab-panel v-if="authStore.userType !== 'cliente'" name="historico" class="q-px-none q-pt-none">
@@ -254,6 +283,24 @@
       </q-card>
     </q-dialog>
 
+    <q-dialog v-model="dialogServico">
+      <q-card class="dialog-card shadow-12">
+        <q-card-section class="bg-primary text-white">
+          <div class="text-h5 text-weight-bold">Adicionar / Modificar Serviço</div>
+        </q-card-section>
+
+        <q-card-section class="q-pa-lg q-gutter-y-md">
+          <q-input v-model="novoServico.nome" label="Nome do Serviço (Ex: Corte + Pezinho)" outlined color="primary" class="custom-input" />
+          <q-input v-model.number="novoServico.preco" type="number" label="Preço Cobrado (R$)" outlined color="primary" class="custom-input" />
+        </q-card-section>
+
+        <q-card-actions align="right" class="q-pa-md bg-grey-1">
+          <q-btn flat label="Cancelar" color="grey-8" class="text-weight-bold" v-close-popup no-caps />
+          <q-btn label="Salvar Serviço" color="primary" class="text-weight-bold action-btn shadow-2" @click="salvarServico" v-close-popup unelevated no-caps />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
+
     <q-dialog v-model="dialogProduto">
       <q-card class="dialog-card shadow-12">
         <q-card-section class="bg-primary text-white">
@@ -263,7 +310,17 @@
         <q-card-section class="q-pa-lg q-gutter-y-md">
           <q-input v-model="novoProduto.nome" label="Nome do Produto (Ex: Pomada Efeito Mate)" outlined color="primary" class="custom-input" />
           <q-input v-model="novoProduto.descricao" label="Breve Descrição (Opcional)" type="textarea" rows="2" outlined color="primary" class="custom-input" />
-          <q-input v-model="novoProduto.imagem_url" label="URL da Imagem da Internet (Opcional)" placeholder="https://..." outlined color="primary" class="custom-input" />
+          
+          <div class="row q-col-gutter-md">
+            <div class="col-12 col-md-6">
+              <q-file v-model="imagemUpload" label="Carregar Imagem do Computador" outlined color="primary" class="custom-input" accept="image/*" clearable>
+                <template v-slot:prepend><q-icon name="attach_file" color="grey-6" /></template>
+              </q-file>
+            </div>
+            <div class="col-12 col-md-6">
+              <q-input v-model="novoProduto.imagem_url" label="Ou URL da Imagem" placeholder="https://..." outlined color="primary" class="custom-input" />
+            </div>
+          </div>
           
           <div class="row q-col-gutter-md">
             <div class="col-6">
@@ -290,15 +347,46 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
 import { useAgendamentoStore } from '@/stores/agendamentoStore'
-
+import { useSistemaStore } from '@/stores/sistemaStore'
+const sistemaStore = useSistemaStore()
 const router = useRouter()
 const authStore = useAuthStore()
 const agendamentoStore = useAgendamentoStore()
+const dialogServico = ref(false)
+const listaServicos = ref<any[]>([])
+const novoServico = ref({ nome: '', preco: 0 })
 
+// FUNÇÕES DE SERVIÇOS
+const fetchServicos = async () => {
+  try {
+    const res = await fetch('http://localhost:8000/servicos/')
+    if (res.ok) listaServicos.value = await res.json()
+  } catch (e) { console.error(e) }
+}
+
+const salvarServico = async () => {
+  if (!novoServico.value.nome) return
+  try {
+    await fetch('http://localhost:8000/servicos/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(novoServico.value)
+    })
+    fetchServicos()
+    novoServico.value = { nome: '', preco: 0 }
+  } catch (e) { console.error(e) }
+}
+
+const deletarServico = async (id: number) => {
+  try {
+    await fetch(`http://localhost:8000/servicos/${id}`, { method: 'DELETE' })
+    fetchServicos()
+  } catch (e) { console.error(e) }
+}
 const abaAtual = ref('proximos')
 const wsConnected = ref(false)
 let ws: WebSocket | null = null
-
+const imagemUpload = ref<File | null>(null)
 const dialogBloqueio = ref(false)
 const bloqueios = ref<any[]>([])
 const novoBloqueio = ref({ inicio: '', fim: '', motivo: 'Pausa' })
@@ -346,10 +434,26 @@ const fetchBloqueios = async () => {
 
     const res = await fetch(`http://localhost:8000/bloqueios/barbeiro/${userId}`)
     if (res.ok) {
-      bloqueios.value = await res.json()
+      const data = await res.json()
+      const agora = new Date()
+      // Filtra os bloqueios: só mostra aqueles cujo horário de fim ainda não passou
+      bloqueios.value = data.filter((b: any) => new Date(b.fim) >= agora)
     }
   } catch (error) {
     console.error("Erro ao buscar bloqueios", error)
+  }
+}
+
+// FUNÇÃO PARA REMOVER A PAUSA/BLOQUEIO
+const removerBloqueio = async (id: number) => {
+  try {
+    const res = await fetch(`http://localhost:8000/bloqueios/${id}`, { method: 'DELETE' })
+    if (res.ok) {
+      // Atualiza a lista de bloqueios após apagar com sucesso
+      fetchBloqueios()
+    }
+  } catch (e) {
+    console.error("Erro ao remover bloqueio", e)
   }
 }
 
@@ -385,14 +489,37 @@ const fetchProdutos = async () => {
 
 const salvarProduto = async () => {
   try {
+    // 1. Se o utilizador selecionou um ficheiro, faz o upload primeiro
+    if (imagemUpload.value) {
+      const formData = new FormData()
+      formData.append('file', imagemUpload.value)
+      
+      const uploadRes = await fetch('http://localhost:8000/upload/imagem', {
+        method: 'POST',
+        body: formData
+      })
+      
+      if (uploadRes.ok) {
+        const uploadData = await uploadRes.json()
+        novoProduto.value.imagem_url = uploadData.url // Preenche a URL com o link local gerado
+      }
+    }
+
+    // 2. Grava o produto no banco de dados
     await fetch('http://localhost:8000/produtos/', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(novoProduto.value)
     })
+    
+    // 3. Limpa o formulário e atualiza a lista
     fetchProdutos()
     novoProduto.value = { nome: '', descricao: '', preco: 0, categoria: 'Outros', imagem_url: '' }
-  } catch (e) { console.error(e) }
+    imagemUpload.value = null
+    
+  } catch (e) { 
+    console.error(e) 
+  }
 }
 
 const deletarProduto = async (id: number) => {
@@ -408,6 +535,7 @@ onMounted(() => {
     fetchBloqueios()
     fetchProdutos()
     inicializarWebSocket()
+    fetchServicos()
   }
 })
 

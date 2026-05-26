@@ -77,3 +77,27 @@ class Produto(Base):
     preco = Column(Float, default=0.0)
     categoria = Column(String, index=True)
     imagem_url = Column(String, nullable=True)
+
+class ConfiguracaoSistema(Base):
+    __tablename__ = "configuracao_sistema"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    nome_barbearia = Column(String, default="BarberBase")
+    logo_url = Column(String, nullable=True)
+
+class FolgaPontual(Base):
+    __tablename__ = "folgas_pontuais"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    barbeiro_id = Column(Integer, ForeignKey("usuarios.id"))
+    data = Column(String, index=True)  # Armazena no formato 'YYYY-MM-DD'
+    motivo = Column(String, nullable=True)
+    
+    barbeiro = relationship("Usuario", foreign_keys=[barbeiro_id])  
+
+class Servico(Base):
+    __tablename__ = "servicos"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    nome = Column(String, unique=True, index=True)
+    preco = Column(Float, default=0.0)
