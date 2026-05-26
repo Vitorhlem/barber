@@ -2,6 +2,14 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { useAuthStore } from './authStore'
 
+// Definição da interface opcional para tipagem do Typescript
+interface Usuario {
+  id: number;
+  nome: string;
+  email?: string;
+  telefone?: string;
+}
+
 export interface Agendamento {
   id: number;
   cliente_id: number;
@@ -11,7 +19,7 @@ export interface Agendamento {
   status: string;
   cliente_nome: string;
   barbeiro_nome: string;
-  preco: number; // <--- NOVO
+  preco: number; 
   cliente?: Usuario;
   barbeiro?: Usuario;
 }
@@ -29,14 +37,16 @@ export const useAgendamentoStore = defineStore('agendamentos', () => {
 
   let socket: WebSocket | null = null
 
-  async function fetchAgendamentos() {
+  // NOVO: Adicionado 'slug' como parâmetro
+  async function fetchAgendamentos(slug: string) {
     const auth = useAuthStore()
-    if (!auth.userId) return
+    if (!auth.userId || !slug) return // Garante que temos o ID do usuário e o link da loja
 
     try {
-      const url = auth.userType === 'barbeiro' 
-        ? `/agendamentos/barbeiro/${auth.userId}` 
-        : `/usuarios/${auth.userId}/agendamentos` 
+      // Injeta o slug no início da rota da API
+      const url = auth.userType === 'barbeiro' || auth.userType === 'admin'
+        ? `/${slug}/agendamentos/barbeiro/${auth.userId}` 
+        : `/${slug}/usuarios/${auth.userId}/agendamentos` 
         
       const response = await fetch(`${apiUrl}${url}`)
       if (response.ok) {
@@ -47,7 +57,9 @@ export const useAgendamentoStore = defineStore('agendamentos', () => {
     }
   }
 
-  function connectWebSocket() {
+  // NOVO: Passa o slug também para a conexão WebSocket para que, quando ele receber msg,
+  // consiga atualizar os agendamentos chamando fetchAgendamentos(slug)
+  function connectWebSocket(slug: string) {
     const auth = useAuthStore()
     if (!auth.userId) return
     
@@ -55,15 +67,26 @@ export const useAgendamentoStore = defineStore('agendamentos', () => {
     socket = new WebSocket(`${wsUrl}/ws/${auth.userId}`)
     
     socket.onmessage = (event) => {
-      notifications.value.push(event.data)
-      unreadCount.value++
-      hasNewNotification.value = true
-      
-      fetchAgendamentos()
+      // Usando JSON.parse para tratar ações
+      try {
+        const data = JSON.parse(event.data)
+        if (data.action === "UPDATE_AGENDAMENTOS") {
+            notifications.value.push("Um agendamento foi atualizado!")
+            unreadCount.value++
+            hasNewNotification.value = true
+            fetchAgendamentos(slug) // Passa o slug na hora de atualizar
+        }
+      } catch (e) {
+        // Fallback caso a msg seja um texto simples
+        notifications.value.push(event.data)
+        unreadCount.value++
+        hasNewNotification.value = true
+        fetchAgendamentos(slug)
+      }
     }
     
     socket.onclose = () => {
-      setTimeout(connectWebSocket, 5000)
+      setTimeout(() => connectWebSocket(slug), 5000)
     }
   }
 

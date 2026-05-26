@@ -8,6 +8,7 @@ class UsuarioBase(BaseModel):
     email: str
     tipo: str
     telefone: Optional[str] = None
+    barbearia_id: Optional[int] = None # Adicionado
 
 class UsuarioCreate(UsuarioBase):
     senha: str
@@ -23,6 +24,7 @@ class UsuarioResponse(UsuarioBase):
 
 # --- AGENDAMENTOS ---
 class AgendamentoBase(BaseModel):
+    barbearia_id: int # Adicionado para garantir o isolamento
     barbeiro_id: int
     servico: str
     data_hora: datetime
@@ -48,6 +50,7 @@ class AgendamentoResponse(AgendamentoBase):
 
 # --- BLOQUEIOS DE HORÁRIO ---
 class BloqueioBase(BaseModel):
+    barbearia_id: int
     barbeiro_id: int
     inicio: datetime
     fim: datetime
@@ -63,6 +66,7 @@ class BloqueioResponse(BloqueioBase):
 
 # --- CONFIGURAÇÕES DO BARBEIRO ---
 class ConfiguracaoBarbeiroBase(BaseModel):
+    barbearia_id: int
     intervalo_minutos: int
     horarios_json: str
     loja_aberta: bool = True
@@ -73,7 +77,9 @@ class ConfiguracaoBarbeiroResponse(ConfiguracaoBarbeiroBase):
     class Config:
         from_attributes = True
 
+# --- PRODUTOS ---
 class ProdutoBase(BaseModel):
+    barbearia_id: int
     nome: str
     descricao: Optional[str] = None
     preco: float
@@ -88,16 +94,23 @@ class ProdutoResponse(ProdutoBase):
     class Config:
         from_attributes = True
 
-class ConfiguracaoSistemaBase(BaseModel):
-    nome_barbearia: str
-    logo_url: Optional[str] = None
+# --- SERVIÇOS ---
+class ServicoBase(BaseModel):
+    barbearia_id: int
+    nome: str
+    preco: float
 
-class ConfiguracaoSistemaResponse(ConfiguracaoSistemaBase):
+class ServicoCreate(ServicoBase):
+    pass
+
+class ServicoResponse(ServicoBase):
     id: int
     class Config:
         from_attributes = True
 
+# --- FOLGAS ---
 class FolgaPontualBase(BaseModel):
+    barbearia_id: int
     barbeiro_id: int
     data: str
     motivo: Optional[str] = None
@@ -110,14 +123,3 @@ class FolgaPontualResponse(FolgaPontualBase):
     class Config:
         from_attributes = True
 
-class ServicoBase(BaseModel):
-    nome: str
-    preco: float
-
-class ServicoCreate(ServicoBase):
-    pass
-
-class ServicoResponse(ServicoBase):
-    id: int
-    class Config:
-        from_attributes = True

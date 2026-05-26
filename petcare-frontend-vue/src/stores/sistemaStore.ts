@@ -5,9 +5,14 @@ export const useSistemaStore = defineStore('sistema', () => {
   const nomeBarbearia = ref('BarberBase')
   const logoUrl = ref('')
 
-  const fetchConfig = async () => {
+  // NOVO: A função agora exige que você passe o slug da barbearia
+  const fetchConfig = async (slug: string) => {
+    if (!slug) return; // Evita requisições quebradas
+    
     try {
-      const res = await fetch('http://localhost:8000/sistema/config')
+      // API com o prefixo dinâmico do slug
+      const res = await fetch(`http://localhost:8000/${slug}/sistema/config`)
+      
       if (res.ok) {
         const data = await res.json()
         nomeBarbearia.value = data.nome_barbearia
@@ -15,7 +20,7 @@ export const useSistemaStore = defineStore('sistema', () => {
         document.title = data.nome_barbearia // Muda o título da aba do navegador
       }
     } catch (e) {
-      console.error('Erro ao buscar configuração do sistema', e)
+      console.error('Erro ao buscar configuração do sistema para a loja: ' + slug, e)
     }
   }
 

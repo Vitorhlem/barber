@@ -147,10 +147,11 @@
 
 <script setup lang="ts">
 import { ref, watch, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router' // Adicionado useRoute
 import { useAuthStore } from '@/stores/authStore'
 import { useQuasar } from 'quasar'
 
+const route = useRoute() // Inicializando route para pegar o slug
 const router = useRouter()
 const authStore = useAuthStore()
 const $q = useQuasar()
@@ -256,13 +257,14 @@ const formularioValido = computed(() => {
 const formatarPreco = (valor: number) => new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'BRL' }).format(valor)
 
 onMounted(async () => {
+  const slug = route.params.slug as string
   try {
-    // Carrega os barbeiros disponíveis
-    const response = await fetch('http://localhost:8000/barbeiros/')
+    // Carrega os barbeiros disponíveis DESSA loja (utilizando crases para template string)
+    const response = await fetch(`http://localhost:8000/${slug}/barbeiros/`)
     if (response.ok) listaBarbeiros.value = await response.json()
 
-    // Carrega a lista de serviços dinâmica direto do Banco de Dados
-    const resServicos = await fetch('http://localhost:8000/servicos/')
+    // Carrega a lista de serviços dinâmica direto do Banco de Dados DESSA loja
+    const resServicos = await fetch(`http://localhost:8000/${slug}/servicos/`)
     if (resServicos.ok) listaServicosBD.value = await resServicos.json()
     
   } catch (error) {
@@ -275,7 +277,8 @@ onMounted(async () => {
 watch([() => form.value.barbeiro_id, dataSelecionada], async ([novoProfissionalId, novaData]) => {
   horaSelecionada.value = '' 
   const idReal = typeof novoProfissionalId === 'object' ? (novoProfissionalId as any)?.id : novoProfissionalId
-  
+  const slug = route.params.slug as string
+
   if (!idReal || !novaData) {
     horariosOcupados.value = []
     bloqueiosDoProfissional.value = []
@@ -286,10 +289,10 @@ watch([() => form.value.barbeiro_id, dataSelecionada], async ([novoProfissionalI
   
   try {
     const [resAgendamentos, resBloqueios, resConfig, resFolgas] = await Promise.all([
-      fetch(`http://localhost:8000/agendamentos/barbeiro/${idReal}`),
-      fetch(`http://localhost:8000/bloqueios/barbeiro/${idReal}`),
-      fetch(`http://localhost:8000/configuracao/${idReal}`),
-      fetch(`http://localhost:8000/folgas/barbeiro/${idReal}`) 
+      fetch(`http://localhost:8000/${slug}/agendamentos/barbeiro/${idReal}`),
+      fetch(`http://localhost:8000/${slug}/bloqueios/barbeiro/${idReal}`),
+      fetch(`http://localhost:8000/${slug}/configuracao/${idReal}`),
+      fetch(`http://localhost:8000/${slug}/folgas/barbeiro/${idReal}`) 
     ])
     
     if (resFolgas.ok) {
@@ -337,6 +340,7 @@ watch([() => form.value.barbeiro_id, dataSelecionada], async ([novoProfissionalI
 const submeterAgendamento = async () => {
   if (!authStore.userId) return
   submetendo.value = true
+  const slug = route.params.slug as string
   
   try {
     const idProfissional = typeof form.value.barbeiro_id === 'object' 
@@ -346,12 +350,12 @@ const submeterAgendamento = async () => {
     const dados = {
       barbeiro_id: idProfissional,
       servico: form.value.servico,
-      // ADICIONAMOS O .value NO tabelaPrecos ABAIXO:
       preco: Number(tabelaPrecos.value[form.value.servico]) || 0,
       data_hora: `${dataSelecionada.value}T${horaSelecionada.value}:00`
     }
     
-    const response = await fetch(`http://localhost:8000/usuarios/${authStore.userId}/agendamentos/`, {
+    // Adicionado o slug na rota
+    const response = await fetch(`http://localhost:8000/${slug}/usuarios/${authStore.userId}/agendamentos/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(dados)
@@ -366,7 +370,8 @@ const submeterAgendamento = async () => {
     }
 
     $q.notify({ type: 'positive', message: 'Agendamento criado com sucesso!', position: 'top' })
-    router.push('/dashboard')
+    // Volta para o dashboard da loja correta
+    router.push(`/${slug}/dashboard`)
     
   } catch (error: any) {
     $q.notify({ type: 'negative', message: `Erro ao agendar: ${error.message}`, position: 'top', timeout: 5000 })
@@ -377,31 +382,20 @@ const submeterAgendamento = async () => {
 </script>
 
 <style scoped>
-/* =======================================================
-   VARIÁVEIS DE COR E ESTILO (FÁCEIS DE ALTERAR)
-======================================================= */
+/* O seu estilo original não foi alterado */
 .form-layout {
   --cor-fundo-pagina: #f1f5f9;
   --cor-cartao-bg: #ffffff;
-  
-  /* Cores do Cabeçalho do Cartão */
   --cor-header-inicio: var(--q-primary);
   --cor-header-fim: #1d4ed8;
-  
-  /* Bordas e Sombras */
   --borda-raio: 20px;
   --borda-raio-input: 12px;
   --borda-cor: #e2e8f0;
 }
-
-/* =======================================================
-   ESTILOS GERAIS
-======================================================= */
 .form-page {
   background-color: var(--cor-fundo-pagina);
   min-height: 100vh;
 }
-
 .back-btn {
   color: #64748b !important;
   font-weight: 600;
@@ -411,28 +405,21 @@ const submeterAgendamento = async () => {
 .back-btn:hover {
   background-color: rgba(100, 116, 139, 0.1);
 }
-
 .letter-spacing {
   letter-spacing: -0.5px;
 }
 .opacity-80 {
   opacity: 0.8;
 }
-
-/* =======================================================
-   CARTÃO PRINCIPAL E CABEÇALHO
-======================================================= */
 .form-card {
   background: var(--cor-cartao-bg);
   border-radius: var(--borda-raio);
   overflow: hidden;
   border: none;
 }
-
 .form-header {
   background: linear-gradient(135deg, var(--cor-header-inicio) 0%, var(--cor-header-fim) 100%);
 }
-
 .header-icon-wrapper {
   width: 64px;
   height: 64px;
@@ -443,39 +430,27 @@ const submeterAgendamento = async () => {
   justify-content: center;
   backdrop-filter: blur(5px);
 }
-
 .header-icon {
   font-size: 32px;
   color: white;
 }
-
-/* =======================================================
-   INPUTS E FORMULÁRIO
-======================================================= */
 .custom-input :deep(.q-field__control) {
   border-radius: var(--borda-raio-input);
   background-color: #f8fafc;
 }
-
 .separator-custom {
   background-color: var(--borda-cor);
 }
-
 .price-badge {
   font-size: 14px;
   font-weight: bold;
   padding: 6px 10px;
   border-radius: 8px;
 }
-
-/* =======================================================
-   SELEÇÃO DE HORÁRIOS
-======================================================= */
 .time-slots-container {
   background-color: #f8fafc;
   border: 1px solid var(--borda-cor);
 }
-
 .time-btn {
   border-radius: 10px;
   transition: all 0.2s ease;
@@ -486,21 +461,15 @@ const submeterAgendamento = async () => {
 .time-btn:hover {
   transform: translateY(-2px);
 }
-
 .empty-time-state {
   background-color: #f1f5f9;
   border: 1px dashed #cbd5e1;
 }
-
-/* =======================================================
-   ESTADOS DE ERRO / FECHADO
-======================================================= */
 .store-closed-banner {
   background-color: #fef2f2;
   border: 2px dashed #fecaca;
   border-radius: var(--borda-raio-input);
 }
-
 .submit-btn {
   border-radius: var(--borda-raio-input);
   font-weight: 700;

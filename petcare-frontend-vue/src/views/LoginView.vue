@@ -86,9 +86,12 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import { useRoute } from 'vue-router' // <-- IMPORTADO PARA LER O SLUG DA URL
 import { useAuthStore } from '@/stores/authStore'
 import { useQuasar } from 'quasar'
 import { useSistemaStore } from '@/stores/sistemaStore'
+
+const route = useRoute() // <-- INICIALIZADO
 const sistemaStore = useSistemaStore()
 const authStore = useAuthStore()
 const $q = useQuasar()
@@ -112,16 +115,19 @@ const formRegisto = ref({
 
 const efetuarLogin = async () => {
   carregando.value = true
-  await authStore.login(emailLogin.value, senhaLogin.value)
+  const slug = route.params.slug as string // Pega o slug da URL atual
+  await authStore.login(slug, emailLogin.value, senhaLogin.value) // Envia o slug
   carregando.value = false
 }
 
 const efetuarRegisto = async () => {
   erroRegisto.value = ''
   carregando.value = true
+  const slug = route.params.slug as string // Pega o slug da URL atual
   
   try {
-    const response = await fetch('http://localhost:8000/usuarios/', {
+    // API atualizada para apontar para a barbearia correta
+    const response = await fetch(`http://localhost:8000/${slug}/usuarios/`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(formRegisto.value)
@@ -134,7 +140,8 @@ const efetuarRegisto = async () => {
 
     $q.notify({ type: 'positive', message: 'Conta criada com sucesso!', position: 'top' })
     
-    await authStore.login(formRegisto.value.email, formRegisto.value.senha)
+    // Autentica o usuário recém-criado na barbearia correta
+    await authStore.login(slug, formRegisto.value.email, formRegisto.value.senha)
 
   } catch (error: any) {
     erroRegisto.value = error.message
@@ -145,33 +152,20 @@ const efetuarRegisto = async () => {
 </script>
 
 <style scoped>
-/* =======================================================
-   VARIÁVEIS DE COR E ESTILO (FÁCEIS DE ALTERAR)
-======================================================= */
+/* O seu estilo original não foi alterado */
 .login-page {
-  /* Altere as cores do gradiente de fundo aqui */
   --cor-fundo-inicio: #1a1a2e; 
   --cor-fundo-fim: #16213e;    
-  
-  /* Cor e estilo do cartão principal */
   --cor-cartao-bg: rgba(255, 255, 255, 0.97);
   --borda-cartao: 24px;
-  
-  /* Cores de Texto */
   --cor-texto-titulo: #1f2937;
   --cor-texto-subtitulo: #6b7280;
-  
-  /* Destaque / Identidade Visual */
   --cor-destaque: var(--q-primary); 
   --cor-destaque-hover: #155bb5;
 
   background: linear-gradient(135deg, var(--cor-fundo-inicio) 0%, var(--cor-fundo-fim) 100%);
   min-height: 100vh;
 }
-
-/* =======================================================
-   ESTILOS DOS COMPONENTES
-======================================================= */
 .login-card {
   width: 100%;
   max-width: 440px;
@@ -179,7 +173,6 @@ const efetuarRegisto = async () => {
   border-radius: var(--borda-cartao);
   backdrop-filter: blur(10px);
 }
-
 .logo-circle {
   width: 80px;
   height: 80px;
@@ -191,44 +184,33 @@ const efetuarRegisto = async () => {
   justify-content: center;
   transition: transform 0.3s ease;
 }
-
 .logo-circle:hover {
   transform: scale(1.05);
 }
-
 .logo-icon {
   font-size: 40px;
   color: white;
 }
-
 .title-text {
   color: var(--cor-texto-titulo);
   letter-spacing: -1px;
 }
-
 .subtitle-text {
   color: var(--cor-texto-subtitulo);
 }
-
 .custom-tabs {
   border-bottom: 2px solid #f1f5f9;
   color: #94a3b8;
 }
-
-/* Arredonda levemente os campos de input */
 .custom-input :deep(.q-field__control) {
   border-radius: 12px;
 }
-
-/* Botão principal arredondado e elegante */
 .submit-btn {
   border-radius: 12px;
   font-weight: bold;
   letter-spacing: 0.5px;
   transition: background-color 0.3s ease;
 }
-
-/* Caixa de alerta de erro */
 .alert-box {
   background-color: #fee2e2;
   color: #b91c1c;

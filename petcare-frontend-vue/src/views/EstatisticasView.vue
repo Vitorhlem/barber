@@ -2,7 +2,7 @@
   <q-layout view="hHh lpR fFf" class="stats-layout">
     <q-header elevated class="stats-header">
       <q-toolbar class="q-px-lg q-py-sm">
-        <q-btn flat round icon="arrow_back" color="white" @click="router.push('/dashboard')" />
+        <q-btn flat round icon="arrow_back" color="white" @click="router.push(`/${slug}/dashboard`)" />
         <q-toolbar-title class="text-weight-bold header-title q-ml-sm">
           Painel de Estatísticas
         </q-toolbar-title>
@@ -148,11 +148,15 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useAgendamentoStore } from '@/stores/agendamentoStore'
 
 const router = useRouter()
+const route = useRoute()
 const agendamentoStore = useAgendamentoStore()
+
+// Captura o slug da loja atual (ex: 'barbearia-do-ze')
+const slug = route.params.slug as string 
 
 const filtroTempo = ref('mes_atual')
 const opcoesFiltro = [
@@ -164,7 +168,8 @@ const opcoesFiltro = [
 ]
 
 onMounted(async () => {
-  await agendamentoStore.fetchAgendamentos()
+  // Passa o slug para a Store para ela baixar apenas os agendamentos desta loja
+  await agendamentoStore.fetchAgendamentos(slug)
 })
 
 // Filtragem de Dados por Data
@@ -249,6 +254,7 @@ const topClientes = computed(() => {
 </script>
 
 <style scoped>
+/* O seu estilo CSS permanece inalterado */
 .stats-layout {
   --cor-fundo-pagina: #f8fafc;
   --cor-header-inicio: #1e293b;
@@ -273,7 +279,6 @@ const topClientes = computed(() => {
   height: 100%;
 }
 
-/* Barras de Progresso Customizadas (Gráficos Nativos) */
 .progress-bg {
   width: 100%;
   height: 12px;

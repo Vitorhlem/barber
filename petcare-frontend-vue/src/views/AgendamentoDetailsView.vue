@@ -11,11 +11,11 @@
               icon="arrow_back" 
               label="Voltar ao Painel" 
               class="back-btn q-mr-md" 
-              @click="router.push('/dashboard')" 
+              @click="router.push(`/${route.params.slug}/dashboard`)" 
               no-caps 
             />
             <q-breadcrumbs class="text-grey-6 text-weight-medium" active-color="primary">
-              <q-breadcrumbs-el icon="home" class="cursor-pointer" @click="router.push('/dashboard')" />
+              <q-breadcrumbs-el icon="home" class="cursor-pointer" @click="router.push(`/${route.params.slug}/dashboard`)" />
               <q-breadcrumbs-el label="Detalhes do Agendamento" />
             </q-breadcrumbs>
           </div>
@@ -77,7 +77,7 @@
                     </div>
                     <div v-if="agendamento.cliente?.email" class="text-body2 text-grey-8 q-mt-sm flex items-center">
                       <q-icon name="email" class="q-mr-sm text-grey-6" size="18px" /> 
-                      {{ agendamento.cliente.email }}
+                        {{ agendamento.cliente.email }}
                     </div>
                   </template>
                 </div>
@@ -194,7 +194,7 @@ const corEstado = (status: string) => {
 
 const alterarEstado = async (novoEstado: string) => {
   try {
-    const response = await fetch(`http://localhost:8000/agendamentos/${agendamento.value.id}`, { 
+    const response = await fetch(`http://localhost:8000/${route.params.slug}/agendamentos/${agendamento.value.id}`, { 
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status: novoEstado })
@@ -221,9 +221,9 @@ const confirmarCancelamento = () => {
     cancel: { flat: true, color: 'grey-8', label: 'Não, recuar', noCaps: true }
   }).onOk(async () => {
     try {
-      await fetch(`http://localhost:8000/agendamentos/${agendamento.value.id}`, { method: 'DELETE' })
+      await fetch(`http://localhost:8000/${route.params.slug}/agendamentos/${agendamento.value.id}`, { method: 'DELETE' })
       $q.notify({ type: 'positive', message: 'Cancelado com sucesso.', position: 'top' })
-      router.push('/dashboard')
+      router.push(`/${route.params.slug}/dashboard`)
     } catch (error) {
       $q.notify({ type: 'negative', message: 'Erro ao cancelar o agendamento.', position: 'top' })
     }
@@ -234,45 +234,32 @@ onMounted(async () => {
   const idAgendamento = Number(route.params.id)
   
   try {
-    const response = await fetch(`http://localhost:8000/agendamentos/${idAgendamento}`)
+    const response = await fetch(`http://localhost:8000/${route.params.slug}/agendamentos/${idAgendamento}`)
     if (!response.ok) throw new Error('Não encontrado')
     agendamento.value = await response.json()
   } catch (error) {
-    router.push('/dashboard')
+    router.push(`/${route.params.slug}/dashboard`)
   }
 })
 </script>
 
 <style scoped>
-/* =======================================================
-   VARIÁVEIS DE COR E ESTILO (FÁCEIS DE ALTERAR)
-======================================================= */
+/* O seu estilo original não foi alterado */
 .details-layout {
   --cor-fundo-pagina: #f1f5f9;
   --cor-cartao-bg: #ffffff;
-  
-  /* Gradiente do Cabeçalho */
   --cor-header-inicio: var(--q-primary);
-  --cor-header-fim: #1e3a8a; /* Azul mais escuro */
-  
-  /* Cores de Texto */
+  --cor-header-fim: #1e3a8a; 
   --cor-texto-primario: #0f172a;
   --cor-texto-secundario: #64748b;
-  
-  /* Bordas e Sombras */
   --borda-raio: 20px;
   --borda-raio-pequeno: 12px;
   --borda-cor: #e2e8f0;
 }
-
-/* =======================================================
-   ESTILOS GERAIS DA PÁGINA
-======================================================= */
 .details-page {
   background-color: var(--cor-fundo-pagina);
   min-height: 100vh;
 }
-
 .back-btn {
   color: var(--cor-texto-secundario) !important;
   font-weight: 700;
@@ -284,29 +271,21 @@ onMounted(async () => {
   background-color: rgba(100, 116, 139, 0.2);
   color: var(--cor-texto-primario) !important;
 }
-
 .letter-spacing {
   letter-spacing: 1px;
 }
 .opacity-80 {
   opacity: 0.8;
 }
-
-/* =======================================================
-   CARTÃO PRINCIPAL
-======================================================= */
 .details-card {
   background: var(--cor-cartao-bg);
   border-radius: var(--borda-raio);
   overflow: hidden;
   border: none;
 }
-
-/* Cabeçalho do Cartão */
 .card-header {
   background: linear-gradient(135deg, var(--cor-header-inicio) 0%, var(--cor-header-fim) 100%);
 }
-
 .header-icon-wrapper {
   width: 64px;
   height: 64px;
@@ -317,20 +296,14 @@ onMounted(async () => {
   justify-content: center;
   backdrop-filter: blur(5px);
 }
-
 .header-icon {
   font-size: 32px;
   color: white;
 }
-
 .status-chip {
   border-radius: 8px;
   font-size: 14px;
 }
-
-/* =======================================================
-   INFORMAÇÕES E TEXTOS
-======================================================= */
 .info-label {
   color: var(--cor-texto-secundario);
   font-weight: 700;
@@ -338,23 +311,19 @@ onMounted(async () => {
   font-size: 0.8rem;
   letter-spacing: 0.5px;
 }
-
 .info-value {
   color: var(--cor-texto-primario);
   font-size: 1.1rem;
   font-weight: 600;
 }
-
 .separator-custom {
   background-color: var(--borda-cor);
 }
-
-/* Link de Contacto (WhatsApp) */
 .contact-link {
   display: inline-flex;
   padding: 6px 12px;
-  background-color: #f0fdf4; /* Fundo verde clarinho */
-  color: #166534; /* Texto verde escuro */
+  background-color: #f0fdf4;
+  color: #166534;
   border-radius: 8px;
   text-decoration: none;
   font-weight: 600;
@@ -363,23 +332,16 @@ onMounted(async () => {
 .contact-link:hover {
   background-color: #dcfce7;
 }
-
-/* =======================================================
-   SEÇÕES DE AÇÃO (GESTÃO E CANCELAMENTO)
-======================================================= */
 .management-section {
   background-color: #f8fafc;
   border: 1px solid var(--borda-cor);
   border-radius: var(--borda-raio-pequeno);
 }
-
 .cancel-section {
   background-color: #fef2f2;
   border: 1px dashed #fca5a5;
   border-radius: var(--borda-raio-pequeno);
 }
-
-/* Botões */
 .action-btn {
   border-radius: 10px;
   font-weight: 700;
@@ -389,7 +351,6 @@ onMounted(async () => {
 .action-btn:hover {
   transform: translateY(-2px);
 }
-
 .action-btn-outline {
   border-radius: 10px;
   font-weight: 700;

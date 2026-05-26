@@ -2,7 +2,7 @@
   <q-layout view="hHh lpR fFf" class="catalog-layout">
     <q-header elevated class="catalog-header">
       <q-toolbar class="q-px-lg q-py-sm">
-        <q-btn flat round icon="arrow_back" color="white" @click="router.push('/dashboard')" />
+        <q-btn flat round icon="arrow_back" color="white" @click="router.push(`/${slug}/dashboard`)" />
         <q-toolbar-title class="text-weight-bold header-title q-ml-sm">
           Vitrine da Barbearia
         </q-toolbar-title>
@@ -78,16 +78,19 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 
 const router = useRouter()
+const route = useRoute()
+const slug = route.params.slug as string // Captura o link dinâmico da loja
+
 const produtos = ref<any[]>([])
 const categoriaAtiva = ref('Todos')
 const carregando = ref(true)
 
 const fetchProdutos = async () => {
   try {
-    const res = await fetch('http://localhost:8000/produtos/')
+    const res = await fetch(`http://localhost:8000/${slug}/produtos/`)
     if (res.ok) {
       produtos.value = await res.json()
     }
@@ -114,6 +117,7 @@ const produtosFiltrados = computed(() => {
 </script>
 
 <style scoped>
+/* O seu estilo original permanece igual */
 .catalog-layout {
   --cor-fundo-pagina: #f8fafc;
   --cor-header-inicio: #1e293b;

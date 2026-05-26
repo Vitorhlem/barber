@@ -16,12 +16,12 @@
         </q-toolbar-title>
         <q-space />
         <div class="q-gutter-sm">
-          <q-btn v-if="authStore.userType === 'cliente'" color="primary" icon="add" label="Novo Agendamento" unelevated class="action-btn" no-caps @click="router.push('/agendamento/novo')" />
-          <q-btn v-if="authStore.userType === 'barbeiro' || authStore.userType === 'admin'" outline color="positive" icon="analytics" label="Estatísticas" class="action-btn-outline bg-white q-mr-sm" no-caps @click="router.push('/estatisticas')" />
+          <q-btn v-if="authStore.userType === 'cliente'" color="primary" icon="add" label="Novo Agendamento" unelevated class="action-btn" no-caps @click="router.push(`/${slug}/agendamento/novo`)" />
+          <q-btn v-if="authStore.userType === 'barbeiro' || authStore.userType === 'admin'" outline color="positive" icon="analytics" label="Estatísticas" class="action-btn-outline bg-white q-mr-sm" no-caps @click="router.push(`/${slug}/estatisticas`)" />
           <q-btn v-if="authStore.userType === 'barbeiro' || authStore.userType === 'admin'" outline color="warning" icon="block" label="Pausa/Bloqueio" class="action-btn-outline" no-caps @click="dialogBloqueio = true" />
           <q-btn outline color="grey-5" text-color="white" icon="logout" label="Sair" class="action-btn-outline text-grey-8" no-caps @click="authStore.logout" />
-          <q-btn outline color="primary" icon="storefront" label="Loja Física" class="action-btn-outline bg-white q-mr-sm" no-caps @click="router.push('/produtos')" />
-          <q-btn flat round icon="settings" class="settings-btn" @click="router.push('/settings')" />
+          <q-btn outline color="primary" icon="storefront" label="Loja Física" class="action-btn-outline bg-white q-mr-sm" no-caps @click="router.push(`/${slug}/produtos`)" />
+          <q-btn flat round icon="settings" class="settings-btn" @click="router.push(`/${slug}/settings`)" />
         </div>
       </q-toolbar>
     </q-header>
@@ -91,7 +91,7 @@
                 </div>
                 <div v-else class="row q-col-gutter-lg">
                   <div class="col-12 col-sm-6 col-md-4" v-for="agendamento in agendamentosProximos" :key="agendamento.id">
-                    <q-card class="dash-card item-card cursor-pointer shadow-3" bordered @click="router.push(`/agendamento/${agendamento.id}`)">
+                    <q-card class="dash-card item-card cursor-pointer shadow-3" bordered @click="router.push(`/${slug}/agendamento/${agendamento.id}`)">
                       <q-card-section>
                         <div class="row items-center justify-between q-mb-md">
                           <div class="text-h6 text-weight-bold item-title">{{ agendamento.servico }}</div>
@@ -198,7 +198,7 @@
                 </div>
                 <div v-else class="row q-col-gutter-lg">
                   <div class="col-12 col-sm-6 col-md-4" v-for="agendamento in agendamentosHistorico" :key="agendamento.id">
-                    <q-card class="dash-card item-card cursor-pointer shadow-3" bordered @click="router.push(`/agendamento/${agendamento.id}`)">
+                    <q-card class="dash-card item-card cursor-pointer shadow-3" bordered @click="router.push(`/${slug}/agendamento/${agendamento.id}`)">
                       <q-card-section>
                         <div class="row items-center justify-between q-mb-md">
                           <div class="text-h6 text-weight-bold item-title">{{ agendamento.servico }}</div>
@@ -344,14 +344,19 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
 import { useAgendamentoStore } from '@/stores/agendamentoStore'
 import { useSistemaStore } from '@/stores/sistemaStore'
-const sistemaStore = useSistemaStore()
+
+const route = useRoute()
 const router = useRouter()
+const slug = route.params.slug as string
+
+const sistemaStore = useSistemaStore()
 const authStore = useAuthStore()
 const agendamentoStore = useAgendamentoStore()
+
 const dialogServico = ref(false)
 const listaServicos = ref<any[]>([])
 const novoServico = ref({ nome: '', preco: 0 })
@@ -359,7 +364,7 @@ const novoServico = ref({ nome: '', preco: 0 })
 // FUNÇÕES DE SERVIÇOS
 const fetchServicos = async () => {
   try {
-    const res = await fetch('http://localhost:8000/servicos/')
+    const res = await fetch(`http://localhost:8000/${slug}/servicos/`)
     if (res.ok) listaServicos.value = await res.json()
   } catch (e) { console.error(e) }
 }
@@ -367,7 +372,7 @@ const fetchServicos = async () => {
 const salvarServico = async () => {
   if (!novoServico.value.nome) return
   try {
-    await fetch('http://localhost:8000/servicos/', {
+    await fetch(`http://localhost:8000/${slug}/servicos/`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(novoServico.value)
@@ -379,14 +384,16 @@ const salvarServico = async () => {
 
 const deletarServico = async (id: number) => {
   try {
-    await fetch(`http://localhost:8000/servicos/${id}`, { method: 'DELETE' })
+    await fetch(`http://localhost:8000/${slug}/servicos/${id}`, { method: 'DELETE' })
     fetchServicos()
   } catch (e) { console.error(e) }
 }
+
 const abaAtual = ref('proximos')
 const wsConnected = ref(false)
 let ws: WebSocket | null = null
 const imagemUpload = ref<File | null>(null)
+
 const dialogBloqueio = ref(false)
 const bloqueios = ref<any[]>([])
 const novoBloqueio = ref({ inicio: '', fim: '', motivo: 'Pausa' })
@@ -411,7 +418,7 @@ const inicializarWebSocket = () => {
     try {
       const data = JSON.parse(event.data)
       if (data.action === "UPDATE_AGENDAMENTOS") {
-        agendamentoStore.fetchAgendamentos()
+        agendamentoStore.fetchAgendamentos(slug) // Enviando slug para a store atualizar
       } else if (data.action === "UPDATE_BLOQUEIOS") {
         fetchBloqueios()
       }
@@ -432,7 +439,7 @@ const fetchBloqueios = async () => {
     const userId = authStore.userId 
     if (!userId) return
 
-    const res = await fetch(`http://localhost:8000/bloqueios/barbeiro/${userId}`)
+    const res = await fetch(`http://localhost:8000/${slug}/bloqueios/barbeiro/${userId}`)
     if (res.ok) {
       const data = await res.json()
       const agora = new Date()
@@ -447,7 +454,7 @@ const fetchBloqueios = async () => {
 // FUNÇÃO PARA REMOVER A PAUSA/BLOQUEIO
 const removerBloqueio = async (id: number) => {
   try {
-    const res = await fetch(`http://localhost:8000/bloqueios/${id}`, { method: 'DELETE' })
+    const res = await fetch(`http://localhost:8000/${slug}/bloqueios/${id}`, { method: 'DELETE' })
     if (res.ok) {
       // Atualiza a lista de bloqueios após apagar com sucesso
       fetchBloqueios()
@@ -466,7 +473,7 @@ const salvarBloqueio = async () => {
       motivo: novoBloqueio.value.motivo
     }
     
-    await fetch('http://localhost:8000/bloqueios/', {
+    await fetch(`http://localhost:8000/${slug}/bloqueios/`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
@@ -482,7 +489,7 @@ const salvarBloqueio = async () => {
 // FUNÇÕES DE PRODUTOS
 const fetchProdutos = async () => {
   try {
-    const res = await fetch('http://localhost:8000/produtos/')
+    const res = await fetch(`http://localhost:8000/${slug}/produtos/`)
     if (res.ok) produtos.value = await res.json()
   } catch (e) { console.error(e) }
 }
@@ -490,6 +497,7 @@ const fetchProdutos = async () => {
 const salvarProduto = async () => {
   try {
     // 1. Se o utilizador selecionou um ficheiro, faz o upload primeiro
+    // A rota de upload da imagem é global (sem slug)
     if (imagemUpload.value) {
       const formData = new FormData()
       formData.append('file', imagemUpload.value)
@@ -505,8 +513,8 @@ const salvarProduto = async () => {
       }
     }
 
-    // 2. Grava o produto no banco de dados
-    await fetch('http://localhost:8000/produtos/', {
+    // 2. Grava o produto no banco de dados da loja
+    await fetch(`http://localhost:8000/${slug}/produtos/`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(novoProduto.value)
@@ -524,14 +532,14 @@ const salvarProduto = async () => {
 
 const deletarProduto = async (id: number) => {
   try {
-    await fetch(`http://localhost:8000/produtos/${id}`, { method: 'DELETE' })
+    await fetch(`http://localhost:8000/${slug}/produtos/${id}`, { method: 'DELETE' })
     fetchProdutos()
   } catch (e) { console.error(e) }
 }
 
 onMounted(() => {
   if (authStore.isAuthenticated()) {
-    agendamentoStore.fetchAgendamentos()
+    agendamentoStore.fetchAgendamentos(slug) // Aqui o slug será enviado para a Store
     fetchBloqueios()
     fetchProdutos()
     inicializarWebSocket()
@@ -594,54 +602,33 @@ const calcularFaturacao = () => {
 </script>
 
 <style scoped>
-/* =======================================================
-   VARIÁVEIS DE COR E ESTILO (FÁCEIS DE ALTERAR)
-======================================================= */
+/* Os seus estilos não foram alterados */
 .dashboard-layout {
-  /* Cores de fundo principais */
   --cor-fundo-dash: #f8fafc;
   --cor-cartao-bg: #ffffff;
-  
-  /* Cores de Cabeçalho */
   --cor-header-bg: #1e293b;
   --cor-header-texto: #ffffff;
-  
-  /* Cores de Texto */
   --cor-texto-primario: #0f172a;
   --cor-texto-secundario: #64748b;
   --cor-texto-icone: #94a3b8;
-  
-  /* Gradiente do Card de Estatísticas (Faturamento) */
   --cor-gradiente-stat-inicio: #2563eb;
   --cor-gradiente-stat-fim: #1d4ed8;
-  
-  /* Bordas e Sombras */
   --borda-raio: 16px;
   --borda-raio-pequeno: 10px;
   --borda-cor: #e2e8f0;
 }
-
-/* =======================================================
-   ESTILOS GERAIS
-======================================================= */
 .dashboard-page {
   background-color: var(--cor-fundo-dash);
   min-height: 100vh;
 }
-
 .page-title {
   color: var(--cor-texto-primario);
   letter-spacing: -0.5px;
 }
-
-/* =======================================================
-   CABEÇALHO E NAVBAR
-======================================================= */
 .dash-header {
   background-color: var(--cor-header-bg);
   color: var(--cor-header-texto);
 }
-
 .logo-circle-small {
   width: 40px;
   height: 40px;
@@ -651,33 +638,27 @@ const calcularFaturacao = () => {
   align-items: center;
   justify-content: center;
 }
-
 .logo-icon-small {
   font-size: 20px;
   color: white;
 }
-
 .header-title {
   font-size: 1.25rem;
   letter-spacing: 0.5px;
 }
-
 .header-subtitle {
   color: #cbd5e1;
 }
-
 .action-btn {
   border-radius: var(--borda-raio-pequeno);
   font-weight: 600;
   letter-spacing: 0.3px;
 }
-
 .action-btn-outline {
   border-radius: var(--borda-raio-pequeno);
   font-weight: 600;
   border-color: rgba(255, 255, 255, 0.2);
 }
-
 .settings-btn {
   color: #cbd5e1;
   transition: transform 0.3s ease, color 0.3s ease;
@@ -686,60 +667,44 @@ const calcularFaturacao = () => {
   transform: rotate(45deg);
   color: white;
 }
-
-/* =======================================================
-   CARTÕES E ESTATÍSTICAS
-======================================================= */
 .dash-card {
   background: var(--cor-cartao-bg);
   border-radius: var(--borda-raio);
   border-color: var(--borda-cor);
 }
-
 .stat-card {
   background: linear-gradient(135deg, var(--cor-gradiente-stat-inicio) 0%, var(--cor-gradiente-stat-fim) 100%);
   color: white;
   border: none;
 }
-
 .stat-title {
   color: rgba(255, 255, 255, 0.8);
   letter-spacing: 1px;
 }
-
 .stat-value {
   letter-spacing: -1px;
 }
-
 .stat-icon-wrapper {
   background: rgba(255, 255, 255, 0.15);
   padding: 12px;
   border-radius: 50%;
   backdrop-filter: blur(5px);
 }
-
 .stat-icon {
   color: white;
   opacity: 0.9;
 }
-
-/* =======================================================
-   ABAS E LISTAS
-======================================================= */
 .custom-tabs {
   color: var(--cor-texto-secundario);
   font-size: 1.1rem;
 }
-
 .separator-custom {
   background-color: var(--borda-cor);
 }
-
 .empty-state {
   border: 1px dashed var(--borda-cor);
   background-color: rgba(255, 255, 255, 0.5);
 }
-
 .item-card {
   transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -748,48 +713,36 @@ const calcularFaturacao = () => {
   box-shadow: 0 12px 24px -8px rgba(0, 0, 0, 0.15) !important;
   border-color: var(--q-primary);
 }
-
 .item-title {
   color: var(--cor-texto-primario);
 }
-
 .item-list {
   color: var(--cor-texto-secundario);
 }
-
 .item-icon {
   color: var(--cor-texto-icone);
 }
-
 .item-text {
   font-size: 0.95rem;
 }
-
-/* =======================================================
-   MODAIS E ALERTAS
-======================================================= */
 .alert-banner {
   background-color: #fee2e2;
   color: #b91c1c;
   border-left: 6px solid #ef4444;
   font-weight: 600;
 }
-
 .dialog-card {
   min-width: 380px;
   border-radius: var(--borda-raio);
   overflow: hidden;
 }
-
 .dialog-header {
-  background-color: #ef4444; /* Vermelho para bloqueio */
+  background-color: #ef4444; 
   padding: 16px 24px;
 }
-
 .custom-input :deep(.q-field__control) {
   border-radius: 8px;
 }
-
 .timeline-entry :deep(.q-timeline__title) {
   color: var(--cor-texto-primario);
 }

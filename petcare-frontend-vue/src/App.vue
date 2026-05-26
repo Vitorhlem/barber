@@ -8,20 +8,30 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, watch } from 'vue' // <-- Importado 'watch'
+import { useRoute } from 'vue-router' // <-- Importado 'useRoute'
 import { useAgendamentoStore } from '@/stores/agendamentoStore'
 import { useSistemaStore } from '@/stores/sistemaStore'
 import NotificationToast from '@/components/NotificationToast.vue'
 
+const route = useRoute() // <-- Inicializado
 const agendamentoStore = useAgendamentoStore()
 const sistemaStore = useSistemaStore()
 
 const currentMsg = ref('')
 const showToast = ref(false)
 
-onMounted(() => {
-  sistemaStore.fetchConfig()
-})
+// NOVO: Vigia a mudança na URL para pegar o slug correto da loja
+watch(
+  () => route.params.slug,
+  (newSlug) => {
+    // Se a rota tiver um slug (Ex: /barbearia-do-ze/login), busca as configs daquela loja
+    if (newSlug) {
+      sistemaStore.fetchConfig(newSlug as string)
+    }
+  },
+  { immediate: true } // Dispara assim que o componente for criado
+)
 
 // Escuta mudanças na store para disparar o toast
 agendamentoStore.$subscribe((mutation, state) => {
