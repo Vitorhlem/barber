@@ -112,8 +112,7 @@
             </q-card-section>
           </q-card>
 
-          <q-card v-if="authStore.userType === 'barbeiro' || authStore.userType === 'admin'" class="settings-card shadow-12">
-            
+          <q-card v-if="authStore.userType === 'barbeiro' || authStore.userType === 'admin'" class="settings-card shadow-12 q-mb-lg">
             <q-card-section class="card-header q-pa-xl">
               <div class="row items-center">
                 <div class="icon-wrapper-header shadow-4 q-mr-lg">
@@ -129,7 +128,6 @@
             </q-card-section>
 
             <q-card-section class="q-pa-xl bg-white">
-              
               <div :class="['store-status-banner q-pa-lg rounded-borders q-mb-xl shadow-1 flex items-center justify-between', config.loja_aberta ? 'store-open' : 'store-closed']">
                 <div>
                   <div class="text-h6 text-weight-bold flex items-center">
@@ -165,57 +163,90 @@
               </q-select>
 
               <div class="text-subtitle1 text-weight-bolder text-primary q-mb-md">Dias e Horários de Trabalho</div>
-              
               <div class="schedule-container">
                 <div v-for="item in horariosLista" :key="item.dia" class="schedule-row row items-center q-pa-md q-mb-sm rounded-borders">
-                  
                   <div class="col-12 col-sm-3 text-weight-bold text-grey-9 text-body1 flex items-center">
                     <q-checkbox v-model="item.trabalha" color="primary" class="q-mr-sm" />
                     <span :class="{'text-grey-5': !item.trabalha}">{{ item.nome }}</span>
                   </div>
-                  
                   <div class="col-6 col-sm-4 q-pr-sm q-mt-sm q-mt-sm-none">
                     <q-input 
-                      v-model="item.inicio" 
-                      type="time" 
-                      label="Abertura" 
-                      outlined 
-                      dense 
-                      class="custom-input-dense" 
-                      :disable="!item.trabalha" 
-                      color="primary"
+                      v-model="item.inicio" type="time" label="Abertura" outlined dense class="custom-input-dense" 
+                      :disable="!item.trabalha" color="primary"
                     />
                   </div>
-                  
                   <div class="col-6 col-sm-4 q-pl-sm q-mt-sm q-mt-sm-none">
                     <q-input 
-                      v-model="item.fim" 
-                      type="time" 
-                      label="Encerramento" 
-                      outlined 
-                      dense 
-                      class="custom-input-dense" 
-                      :disable="!item.trabalha" 
-                      color="primary"
+                      v-model="item.fim" type="time" label="Encerramento" outlined dense class="custom-input-dense" 
+                      :disable="!item.trabalha" color="primary"
                     />
                   </div>
-
                 </div>
               </div>
             </q-card-section>
 
             <q-card-actions align="right" class="q-pa-lg bg-grey-1" style="border-top: 1px solid #e2e8f0;">
               <q-btn 
-                color="primary" 
-                label="Salvar Configurações" 
-                icon="save" 
-                class="action-btn shadow-4 q-px-lg" 
-                size="lg"
-                :loading="salvando" 
-                @click="salvarConfiguracao" 
-                unelevated 
-                no-caps
+                color="primary" label="Salvar Configurações" icon="save" class="action-btn shadow-4 q-px-lg" 
+                size="lg" :loading="salvando" @click="salvarConfiguracao" unelevated no-caps
               />
+            </q-card-actions>
+          </q-card>
+
+          <q-card class="settings-card shadow-12 q-mb-lg">
+            <q-card-section class="q-pa-xl">
+              <div class="text-h5 text-weight-bolder text-primary q-mb-md">Alterar Senha de Acesso</div>
+              <div class="text-subtitle2 text-grey-6 q-mb-lg text-weight-medium">Mantenha os seus dados seguros atualizando a sua senha periodicamente.</div>
+              
+              <div class="row q-col-gutter-md">
+                <div class="col-12">
+                  <q-input v-model="formSenha.senha_atual" type="password" label="Senha Atual" outlined color="primary" class="custom-input" />
+                </div>
+                <div class="col-12 col-sm-6">
+                  <q-input v-model="formSenha.nova_senha" type="password" label="Nova Senha" outlined color="primary" class="custom-input" />
+                </div>
+                <div class="col-12 col-sm-6">
+                  <q-input v-model="formSenha.confirmar_senha" type="password" label="Confirmar Nova Senha" outlined color="primary" class="custom-input" />
+                </div>
+              </div>
+            </q-card-section>
+            <q-card-actions align="right" class="q-pa-md bg-grey-1">
+              <q-btn color="primary" label="Atualizar Senha" class="action-btn shadow-2" @click="handleAlterarSenha" :loading="loadingSenha" unelevated no-caps />
+            </q-card-actions>
+          </q-card>
+
+          <q-card v-if="authStore.userType === 'admin'" class="settings-card shadow-12 border-warning q-mb-lg">
+            <q-card-section class="bg-amber-1 text-black q-pa-xl" style="border-bottom: 1px solid #fcd34d;">
+              <div class="text-h5 text-weight-bolder text-amber-9 letter-spacing">Endereço Exclusivo da Loja</div>
+              <div class="text-subtitle2 text-amber-8 q-mt-xs text-weight-medium">Configure o link que identifica a sua barbearia no sistema.</div>
+              
+              <q-banner inline-actions class="bg-warning text-black q-mt-lg rounded-borders shadow-2">
+                <template v-slot:avatar>
+                  <q-icon name="warning" color="dark" size="md" />
+                </template>
+                <span class="text-weight-bold">Atenção ao alterar o link da sua loja!</span><br>
+                Se alterar este endereço, o link atual deixará de funcionar imediatamente. Os seus clientes perderão o acesso através dos links antigos ou QR Codes impressos.
+              </q-banner>
+            </q-card-section>
+
+            <q-card-section class="q-pa-xl">
+              <div class="text-subtitle2 text-weight-bold text-grey-8 q-mb-sm">Link de acesso atual:</div>
+              <code class="bg-grey-3 q-pa-sm rounded-borders text-secondary block q-mb-lg text-body1 text-weight-medium">
+                localhost:5173/{{ authStore.barbeariaSlug }}/login
+              </code>
+
+              <q-input 
+                v-model="novoSlug" 
+                label="Novo Link Desejado (Ex: barbearia-do-bairro)" 
+                outlined 
+                color="amber-9"
+                class="custom-input"
+                hint="Evite espaços ou caracteres especiais. Eles serão convertidos em hifens."
+              />
+            </q-card-section>
+
+            <q-card-actions align="right" class="q-pa-md bg-amber-1">
+              <q-btn color="negative" label="Alterar Link da Loja" class="action-btn shadow-2" @click="confirmarAlteracaoSlug" :loading="loadingSlug" unelevated no-caps />
             </q-card-actions>
           </q-card>
 
@@ -240,13 +271,23 @@ const router = useRouter()
 const authStore = useAuthStore()
 const $q = useQuasar()
 
-const slug = route.params.slug as string // Captura a loja
+const slug = route.params.slug as string 
 
+// Estados Base
 const logoUpload = ref<File | null>(null)
 const salvando = ref(false)
 const listaFolgas = ref<any[]>([])
 const novaFolga = ref({ data: '', motivo: '' })
 
+// Estados de Segurança
+const loadingSenha = ref(false)
+const formSenha = ref({ senha_atual: '', nova_senha: '', confirmar_senha: '' })
+
+// Estados do Slug
+const loadingSlug = ref(false)
+const novoSlug = ref(authStore.barbeariaSlug)
+
+// --- MÉTODOS ORIGINAIS ---
 const formatarDataSimples = (dataStr: string) => {
   const parts = dataStr.split('-')
   return `${parts[2]}/${parts[1]}/${parts[0]}`
@@ -335,7 +376,6 @@ const fetchConfiguracao = async () => {
 
 const salvarMarca = async () => {
   try {
-    // 1. O upload da imagem continua global na API
     if (logoUpload.value) {
       const formData = new FormData()
       formData.append('file', logoUpload.value)
@@ -351,14 +391,12 @@ const salvarMarca = async () => {
       }
     }
 
-    // 2. Atualiza os dados no banco vinculados ao slug da loja
     await fetch(`http://localhost:8000/${slug}/sistema/config`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(configSistema.value)
     })
     
-    // 3. Pede para o store baixar os novos dados (com a nova cor/logo)
     await sistemaStore.fetchConfig(slug)
     logoUpload.value = null
     
@@ -396,6 +434,86 @@ const salvarConfiguracao = async () => {
   }
 }
 
+// --- NOVOS MÉTODOS: SEGURANÇA E IDENTIDADE ---
+async function handleAlterarSenha() {
+  if (!formSenha.value.senha_atual || !formSenha.value.nova_senha) {
+    $q.notify({ color: 'negative', message: 'Preencha todos os campos de senha.', position: 'top' })
+    return
+  }
+
+  if (formSenha.value.nova_senha !== formSenha.value.confirmar_senha) {
+    $q.notify({ color: 'negative', message: 'A nova senha e a confirmação não coincidem.', position: 'top' })
+    return
+  }
+
+  loadingSenha.value = true
+  try {
+    const response = await fetch(`http://localhost:8000/${slug}/usuarios/${authStore.userId}/alterar-senha`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        senha_atual: formSenha.value.senha_atual,
+        nova_senha: formSenha.value.nova_senha
+      })
+    })
+
+    const data = await response.json()
+    if (!response.ok) throw new Error(data.detail || 'Erro ao alterar senha.')
+
+    $q.notify({ color: 'positive', message: 'Senha atualizada com sucesso!', position: 'top' })
+    formSenha.value = { senha_atual: '', nova_senha: '', confirmar_senha: '' }
+  } catch (err: any) {
+    $q.notify({ color: 'negative', message: err.message, position: 'top' })
+  } finally {
+    loadingSenha.value = false
+  }
+}
+
+function confirmarAlteracaoSlug() {
+  if (!novoSlug.value || novoSlug.value === authStore.barbeariaSlug) {
+    $q.notify({ color: 'warning', message: 'Informe um link novo diferente do atual.', position: 'top' })
+    return
+  }
+
+  $q.dialog({
+    title: 'Confirmar Alteração de Link?',
+    message: 'Tem a certeza absoluta? Todos os links antigos enviados a clientes pararão de funcionar imediatamente.',
+    cancel: true,
+    persistent: true,
+    ok: { label: 'Sim, desejo alterar', color: 'negative', unelevated: true }
+  }).onOk(() => {
+    handleAlterarSlug()
+  })
+}
+
+async function handleAlterarSlug() {
+  loadingSlug.value = true
+  try {
+    const response = await fetch(`http://localhost:8000/${slug}/sistema/alterar-slug?usuario_logado_id=${authStore.userId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ novo_slug: novoSlug.value })
+    })
+
+    const data = await response.json()
+    if (!response.ok) throw new Error(data.detail || 'Erro ao alterar endereço da loja.')
+
+    $q.notify({ color: 'positive', message: 'Endereço da barbearia alterado com sucesso!', position: 'top' })
+    
+    // Atualiza na store
+    if(authStore.atualizarSlugLocal) {
+      authStore.atualizarSlugLocal(data.novo_slug)
+    }
+    
+    // Recarrega a página no novo endereço
+    router.push(`/${data.novo_slug}/settings`)
+  } catch (err: any) {
+    $q.notify({ color: 'negative', message: err.message, position: 'top' })
+  } finally {
+    loadingSlug.value = false
+  }
+}
+
 onMounted(() => {
   sistemaStore.fetchConfig(slug).then(() => {
     configSistema.value.nome_barbearia = sistemaStore.nomeBarbearia
@@ -407,7 +525,6 @@ onMounted(() => {
 </script>
 
 <style scoped>
-/* O seu estilo CSS permanece inalterado */
 .settings-layout {
   --cor-fundo-pagina: #f1f5f9;
   --cor-cartao-bg: #ffffff;
@@ -445,6 +562,9 @@ onMounted(() => {
   border-radius: var(--borda-raio);
   overflow: hidden;
   border: none;
+}
+.border-warning {
+  border: 1px solid #f2c037;
 }
 .icon-wrapper {
   width: 64px;

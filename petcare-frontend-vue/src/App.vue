@@ -1,5 +1,29 @@
 <template>
   <q-layout view="hHh lpR fFf">
+    
+    <q-header elevated v-if="authStore.isSuperAdmin()" class="bg-dark text-white">
+      <q-toolbar>
+        <q-toolbar-title>
+          Painel SaaS - Super Admin
+        </q-toolbar-title>
+        
+        <q-btn 
+          flat 
+          v-if="authStore.barbeariaSlug" 
+          :to="`/${authStore.barbeariaSlug}/dashboard`" 
+          label="Ver Dashboard Local" 
+        />
+        
+        <q-btn 
+          flat 
+          to="/admin/lojas" 
+          label="Gerenciar Barbearias" 
+          color="warning" 
+          class="q-ml-sm"
+        />
+      </q-toolbar>
+    </q-header>
+
     <q-page-container>
       <NotificationToast :message="currentMsg" :visible="showToast" @close="showToast = false" />
       <router-view />
@@ -8,20 +32,22 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue' // <-- Importado 'watch'
-import { useRoute } from 'vue-router' // <-- Importado 'useRoute'
+import { ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { useAgendamentoStore } from '@/stores/agendamentoStore'
 import { useSistemaStore } from '@/stores/sistemaStore'
 import NotificationToast from '@/components/NotificationToast.vue'
+import { useAuthStore } from '@/stores/authStore'
 
-const route = useRoute() // <-- Inicializado
+const authStore = useAuthStore()
+const route = useRoute()
 const agendamentoStore = useAgendamentoStore()
 const sistemaStore = useSistemaStore()
 
 const currentMsg = ref('')
 const showToast = ref(false)
 
-// NOVO: Vigia a mudança na URL para pegar o slug correto da loja
+// Vigia a mudança na URL para pegar o slug correto da loja
 watch(
   () => route.params.slug,
   (newSlug) => {
@@ -30,7 +56,7 @@ watch(
       sistemaStore.fetchConfig(newSlug as string)
     }
   },
-  { immediate: true } // Dispara assim que o componente for criado
+  { immediate: true }
 )
 
 // Escuta mudanças na store para disparar o toast

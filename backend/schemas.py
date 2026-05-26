@@ -8,7 +8,7 @@ class UsuarioBase(BaseModel):
     email: str
     tipo: str
     telefone: Optional[str] = None
-    barbearia_id: Optional[int] = None # Adicionado
+    barbearia_id: Optional[int] = None
 
 class UsuarioCreate(UsuarioBase):
     senha: str
@@ -24,7 +24,6 @@ class UsuarioResponse(UsuarioBase):
 
 # --- AGENDAMENTOS ---
 class AgendamentoBase(BaseModel):
-    barbearia_id: int # Adicionado para garantir o isolamento
     barbeiro_id: int
     servico: str
     data_hora: datetime
@@ -44,13 +43,13 @@ class AgendamentoResponse(AgendamentoBase):
     barbeiro_nome: str  
     cliente: Optional[UsuarioBase] = None
     barbeiro: Optional[UsuarioBase] = None
+    barbearia_id: int
 
     class Config:
         from_attributes = True
 
 # --- BLOQUEIOS DE HORÁRIO ---
 class BloqueioBase(BaseModel):
-    barbearia_id: int
     barbeiro_id: int
     inicio: datetime
     fim: datetime
@@ -61,12 +60,17 @@ class BloqueioCreate(BloqueioBase):
 
 class BloqueioResponse(BloqueioBase):
     id: int
+    barbearia_id: int
     class Config:
         from_attributes = True
 
 # --- CONFIGURAÇÕES DO BARBEIRO ---
 class ConfiguracaoBarbeiroBase(BaseModel):
-    barbearia_id: int
+    intervalo_minutos: int
+    horarios_json: str
+    loja_aberta: bool = True
+
+class ConfiguracaoBarbeiroUpdate(BaseModel):
     intervalo_minutos: int
     horarios_json: str
     loja_aberta: bool = True
@@ -74,12 +78,12 @@ class ConfiguracaoBarbeiroBase(BaseModel):
 class ConfiguracaoBarbeiroResponse(ConfiguracaoBarbeiroBase):
     id: int
     barbeiro_id: int
+    barbearia_id: int
     class Config:
         from_attributes = True
 
 # --- PRODUTOS ---
 class ProdutoBase(BaseModel):
-    barbearia_id: int
     nome: str
     descricao: Optional[str] = None
     preco: float
@@ -91,12 +95,12 @@ class ProdutoCreate(ProdutoBase):
 
 class ProdutoResponse(ProdutoBase):
     id: int
+    barbearia_id: int
     class Config:
         from_attributes = True
 
 # --- SERVIÇOS ---
 class ServicoBase(BaseModel):
-    barbearia_id: int
     nome: str
     preco: float
 
@@ -105,12 +109,12 @@ class ServicoCreate(ServicoBase):
 
 class ServicoResponse(ServicoBase):
     id: int
+    barbearia_id: int
     class Config:
         from_attributes = True
 
 # --- FOLGAS ---
 class FolgaPontualBase(BaseModel):
-    barbearia_id: int
     barbeiro_id: int
     data: str
     motivo: Optional[str] = None
@@ -120,6 +124,24 @@ class FolgaPontualCreate(FolgaPontualBase):
 
 class FolgaPontualResponse(FolgaPontualBase):
     id: int
+    barbearia_id: int
     class Config:
         from_attributes = True
 
+class ConfiguracaoSistemaBase(BaseModel):
+    nome_barbearia: str
+    logo_url: Optional[str] = None
+
+class ConfiguracaoSistemaResponse(ConfiguracaoSistemaBase):
+    id: int
+    slug: str
+    
+    class Config:
+        from_attributes = True
+
+class AlterarSenhaRequest(BaseModel):
+    senha_atual: str
+    nova_senha: str
+
+class AlterarSlugRequest(BaseModel):
+    novo_slug: str

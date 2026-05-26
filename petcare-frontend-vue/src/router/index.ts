@@ -5,15 +5,23 @@ import DashboardView from '../views/DashboardView.vue'
 import AgendamentoFormView from '../views/AgendamentoFormView.vue'
 import AgendamentoDetailsView from '../views/AgendamentoDetailsView.vue'
 import SettingsView from '../views/SettingsView.vue'
+// NOVO: Importamos a HomeView
+import HomeView from '../views/HomeView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
+    // 0. Rota Raiz (Página de Vendas / Portfolio)
+    {
+      path: '/',
+      name: 'home',
+      component: HomeView
+    },
+
     // 1. Rota global para o Dono do Sistema (Super Admin)
     {
       path: '/admin/lojas',
       name: 'super-admin',
-      // Você precisará criar essa view posteriormente:
       component: () => import('../views/SuperAdminView.vue'), 
       meta: { requerSuperAdmin: true }
     },
@@ -64,8 +72,9 @@ const router = createRouter({
     // 3. Rota de fallback (404)
     {
       path: '/:pathMatch(.*)*',
-      // Pode redirecionar para uma página principal de vendas do sistema ou 404 global
-      redirect: '/admin/lojas' 
+      name: 'not-found',
+      // Agora, qualquer rota inválida ou sem slug (ex: /qualquer-coisa) vai para a página inicial
+      redirect: '/' 
     }
   ]
 })
@@ -73,21 +82,22 @@ const router = createRouter({
 router.beforeEach((to, from) => {
   const authStore = useAuthStore()
   
-  // Lógica opcional para bloquear acesso se a rota for de super-admin
-  // if (to.meta.requerSuperAdmin && !authStore.isSuperAdmin()) {
-  //   return '/' 
-  // }
+  if (to.meta.requerSuperAdmin && !authStore.isSuperAdmin()) {
+    if (authStore.barbeariaSlug) {
+      return `/${authStore.barbeariaSlug}/dashboard`
+    }
+    return false 
+  }
   
   if (to.meta.requerAutenticacao && !authStore.isAuthenticated()) {
-    // Como a URL agora é dinâmica, pegamos o parâmetro 'slug' da tentativa de acesso
-    // e enviamos o usuário de volta para a tela de login exclusiva daquela loja
-    const slug = to.params.slug
+    const slugParam = to.params.slug
+    const slug = Array.isArray(slugParam) ? slugParam[0] : slugParam
+    
     if (slug) {
       return `/${slug}/login`
     }
     
-    // Fallback caso acesse algo sem slug acidentalmente
-    return '/login'
+    return false 
   }
 })
 

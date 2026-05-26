@@ -120,8 +120,14 @@ def criar_evento_google(token_entry, agendamento, db):
 # --- ROTA SUPER ADMIN (Criar Barbearias) ---
 # Apenas quem for dono do sistema SaaS deve acessar esta rota. 
 @app.post("/admin/barbearias/")
-def criar_barbearia(nome: str, slug: str, db: Session = Depends(get_db)):
-    # Verificação de slug duplicado
+def criar_barbearia(nome: str, slug: str, usuario_logado_id: int, db: Session = Depends(get_db)):
+    
+    # 1. Verifica se quem está tentando criar a loja é realmente o Admin dono do SaaS
+    usuario = db.query(models.Usuario).filter(models.Usuario.id == usuario_logado_id).first()
+    if not usuario or usuario.tipo != "admin":
+        raise HTTPException(status_code=403, detail="Acesso negado: Apenas o Super Admin pode criar novas lojas.")
+
+    # 2. Verificação de slug duplicado
     existe = db.query(models.Barbearia).filter(models.Barbearia.slug == slug).first()
     if existe:
         raise HTTPException(status_code=400, detail="Já existe uma loja com este link/slug.")
@@ -131,8 +137,6 @@ def criar_barbearia(nome: str, slug: str, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(nova_barbearia)
     return {"message": "Barbearia criada com sucesso", "barbearia": nova_barbearia.nome, "link": f"localhost:5173/{nova_barbearia.slug}/login"}
-
-
 # --- ROTAS DE AUTENTICAÇÃO ---
 @app.get("/{slug}/auth/google/login")
 async def login_google(slug: str, user_id: int):
@@ -279,6 +283,65 @@ async def deletar_agendamento(slug: str, agendamento_id: int, db: Session = Depe
     await manager.broadcast_update(barbeiro_id, "UPDATE_AGENDAMENTOS")
     
     return {"message": "Agendamento cancelado"}
+
+@app.get("/{slug}/agendamentos/{agendamento_id}", response_model=schemas.AgendamentoResponse)
+def buscar_agendamento(slug: str, agendamento_id: int, db: Session = Depends(get_db), barbearia: models.Barbearia = Depends(obter_barbearia)):
+    agendamento = db.query(models.Agendamento).options(
+        joinedload(models.Agendamento.cliente),
+        joinedload(models.Agendamento.barbeiro)
+    ).filter(
+        models.Agendamento.id == agendamento_id,
+        models.Agendamento.barbearia_id == barbearia.id # Garante que o agendamento pertence à loja correta
+    ).first()
+    
+    if not agendamento:
+        raise HTTPException(status_code=404, detail="Agendamento não encontrado")
+        
+    return agendamento
+
+@app.put("/{slug}/usuarios/{user_id}/alterar-senha")
+def alterar_senha(slug: str, user_id: int, dados: schemas.AlterarSenhaRequest, db: Session = Depends(get_db), barbearia: models.Barbearia = Depends(obter_barbearia)):
+    usuario = db.query(models.Usuario).filter(models.Usuario.id == user_id, models.Usuario.barbearia_id == barbearia.id).first()
+    if not usuario:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado.")
+    
+    # Valida a senha atual
+    if usuario.senha_hash != dados.senha_atual:
+        raise HTTPException(status_code=400, detail="A senha atual informada está incorreta.")
+        
+    usuario.senha_hash = dados.nova_senha
+    db.commit()
+    return {"message": "Senha alterada com sucesso."}
+
+
+# --- ROTA: ALTERAR SLUG/LINK DA BARBEARIA (CRÍTICO) ---
+@app.put("/{slug}/sistema/alterar-slug")
+def alterar_slug(slug: str, dados: schemas.AlterarSlugRequest, usuario_logado_id: int, db: Session = Depends(get_db), barbearia: models.Barbearia = Depends(obter_barbearia)):
+    # 1. Garante que apenas o Administrador local da barbearia pode fazer essa alteração
+    usuario = db.query(models.Usuario).filter(models.Usuario.id == usuario_logado_id, models.Usuario.barbearia_id == barbearia.id).first()
+    if not usuario or usuario.tipo != "admin":
+        raise HTTPException(status_code=403, detail="Acesso negado: Apenas administradores podem alterar o link da loja.")
+    
+    # 2. Normaliza o novo slug (reemplaza espaços por hifens e força minúsculas)
+    novo_slug_formatado = dados.novo_slug.strip().lower().replace(" ", "-")
+    
+    if not novo_slug_formatado:
+        raise HTTPException(status_code=400, detail="O link não pode ficar em branco.")
+        
+    if novo_slug_formatado == slug:
+        return {"message": "O link informado já é o link atual desta loja.", "novo_slug": slug}
+
+    # 3. Verifica se o novo slug já está sendo usado por outra barbearia no ecossistema
+    existe = db.query(models.Barbearia).filter(models.Barbearia.slug == novo_slug_formatado).first()
+    if existe:
+        raise HTTPException(status_code=400, detail="Este link de acesso já está em uso por outra barbearia. Escolha outro.")
+    
+    # 4. Aplica a alteração
+    barbearia.slug = novo_slug_formatado
+    db.commit()
+    db.refresh(barbearia)
+    
+    return {"message": "Link da barbearia alterado com sucesso!", "novo_slug": barbearia.slug}
 
 @app.get("/{slug}/usuarios/{cliente_id}/agendamentos")
 def listar_agendamentos_cliente(slug: str, cliente_id: int, db: Session = Depends(get_db), barbearia: models.Barbearia = Depends(obter_barbearia)):
@@ -438,7 +501,8 @@ def obter_configuracao_sistema(slug: str, db: Session = Depends(get_db), barbear
     }
 
 @app.put("/{slug}/sistema/config")
-def atualizar_configuracao_sistema(slug: str, config_update: schemas.ConfiguracaoBarbeiroBase, db: Session = Depends(get_db), barbearia: models.Barbearia = Depends(obter_barbearia)):
+def atualizar_configuracao_sistema(slug: str, config_update: schemas.ConfiguracaoSistemaBase, db: Session = Depends(get_db), barbearia: models.Barbearia = Depends(obter_barbearia)):
+    # Correção: O schema correto aqui é ConfiguracaoSistemaBase, e não ConfiguracaoBarbeiroBase
     barbearia.nome = config_update.nome_barbearia
     barbearia.logo_url = config_update.logo_url
     db.commit()
@@ -479,23 +543,26 @@ def obter_configuracao(slug: str, barbeiro_id: int, db: Session = Depends(get_db
     return config
 
 @app.put("/{slug}/configuracao/{barbeiro_id}", response_model=schemas.ConfiguracaoBarbeiroResponse)
-def atualizar_configuracao(slug: str, barbeiro_id: int, config_update: schemas.ConfiguracaoBarbeiroBase, db: Session = Depends(get_db), barbearia: models.Barbearia = Depends(obter_barbearia)):
+def atualizar_configuracao(slug: str, barbeiro_id: int, config_update: schemas.ConfiguracaoBarbeiroUpdate, db: Session = Depends(get_db), barbearia: models.Barbearia = Depends(obter_barbearia)):
+    
     config = db.query(models.ConfiguracaoBarbeiro).filter(
         models.ConfiguracaoBarbeiro.barbeiro_id == barbeiro_id,
         models.ConfiguracaoBarbeiro.barbearia_id == barbearia.id
     ).first()
     
     if not config:
+        # Se não existir, cria e já vincula à barbearia correta
         config = models.ConfiguracaoBarbeiro(barbeiro_id=barbeiro_id, barbearia_id=barbearia.id)
         db.add(config)
     
+    # Atualiza apenas os campos permitidos
     config.intervalo_minutos = config_update.intervalo_minutos
     config.horarios_json = config_update.horarios_json
     config.loja_aberta = config_update.loja_aberta
+    
     db.commit()
     db.refresh(config)
     return config
-
 @app.websocket("/ws/{user_id}")
 async def websocket_endpoint(websocket: WebSocket, user_id: int):
     # O websocket pode se manter igual, pois rastreia direto o ID do usuário (já vinculado à loja ao logar)

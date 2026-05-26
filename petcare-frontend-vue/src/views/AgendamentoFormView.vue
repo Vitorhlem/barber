@@ -17,12 +17,23 @@
           <q-card class="form-card shadow-12">
             
             <q-card-section class="form-header text-center q-pa-xl">
-              <div class="header-icon-wrapper shadow-3 q-mx-auto q-mb-md">
+              <div v-if="sistemaStore.logoUrl" class="q-mx-auto q-mb-md flex flex-center">
+                <q-img 
+                  :src="sistemaStore.logoUrl" 
+                  style="max-height: 90px; max-width: 200px; border-radius: 8px;" 
+                  fit="contain" 
+                />
+              </div>
+              <div v-else class="header-icon-wrapper shadow-3 q-mx-auto q-mb-md">
                 <q-icon name="calendar_month" class="header-icon" />
               </div>
-              <div class="text-h4 text-weight-bolder text-white letter-spacing">Marcar Horário</div>
+
+              <div class="text-h4 text-weight-bolder text-white letter-spacing">
+                {{ sistemaStore.nomeBarbearia || 'Nossa Barbearia' }}
+              </div>
+              
               <div class="text-subtitle1 text-white text-weight-medium q-mt-sm opacity-80">
-                Selecione o profissional e o horário ideal para si.
+                Reserve um Horário
               </div>
             </q-card-section>
 
@@ -147,14 +158,17 @@
 
 <script setup lang="ts">
 import { ref, watch, computed, onMounted } from 'vue'
-import { useRouter, useRoute } from 'vue-router' // Adicionado useRoute
+import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
+import { useSistemaStore } from '@/stores/sistemaStore' // Importado o sistemaStore
 import { useQuasar } from 'quasar'
 
-const route = useRoute() // Inicializando route para pegar o slug
+const route = useRoute() 
 const router = useRouter()
 const authStore = useAuthStore()
+const sistemaStore = useSistemaStore() // Instanciado o sistemaStore
 const $q = useQuasar()
+
 const listaServicosBD = ref<any[]>([])
 
 const tabelaPrecos = computed(() => {
@@ -259,11 +273,9 @@ const formatarPreco = (valor: number) => new Intl.NumberFormat('pt-PT', { style:
 onMounted(async () => {
   const slug = route.params.slug as string
   try {
-    // Carrega os barbeiros disponíveis DESSA loja (utilizando crases para template string)
     const response = await fetch(`http://localhost:8000/${slug}/barbeiros/`)
     if (response.ok) listaBarbeiros.value = await response.json()
 
-    // Carrega a lista de serviços dinâmica direto do Banco de Dados DESSA loja
     const resServicos = await fetch(`http://localhost:8000/${slug}/servicos/`)
     if (resServicos.ok) listaServicosBD.value = await resServicos.json()
     
@@ -354,7 +366,6 @@ const submeterAgendamento = async () => {
       data_hora: `${dataSelecionada.value}T${horaSelecionada.value}:00`
     }
     
-    // Adicionado o slug na rota
     const response = await fetch(`http://localhost:8000/${slug}/usuarios/${authStore.userId}/agendamentos/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -370,7 +381,6 @@ const submeterAgendamento = async () => {
     }
 
     $q.notify({ type: 'positive', message: 'Agendamento criado com sucesso!', position: 'top' })
-    // Volta para o dashboard da loja correta
     router.push(`/${slug}/dashboard`)
     
   } catch (error: any) {
@@ -382,12 +392,11 @@ const submeterAgendamento = async () => {
 </script>
 
 <style scoped>
-/* O seu estilo original não foi alterado */
 .form-layout {
   --cor-fundo-pagina: #f1f5f9;
   --cor-cartao-bg: #ffffff;
   --cor-header-inicio: var(--q-primary);
-  --cor-header-fim: #1d4ed8;
+  --cor-header-fim: #1e1f20;
   --borda-raio: 20px;
   --borda-raio-input: 12px;
   --borda-cor: #e2e8f0;
@@ -456,7 +465,7 @@ const submeterAgendamento = async () => {
   transition: all 0.2s ease;
 }
 .time-btn:not(.q-btn--outline) {
-  box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2), 0 2px 4px -1px rgba(37, 99, 235, 0.1);
+  box-shadow: 0 4px 6px -1px rgba(13, 13, 15, 0.2), 0 2px 4px -1px rgba(7, 7, 8, 0.1);
 }
 .time-btn:hover {
   transform: translateY(-2px);
