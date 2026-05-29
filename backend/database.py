@@ -1,13 +1,15 @@
-# database.py
+# /home/opc/apps/Barber/barber/backend/database.py
+import os
+from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 
-# String de conexão para rodar local no pgAdmin (Substitua 'postgres' e 'suasenha' pelos seus dados locais, e crie o banco 'barberbase')
-SQLALCHEMY_DATABASE_URL = "postgresql://postgres:Admin123@localhost:5432/barber"
+load_dotenv()
+
+SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://barber_user:26052026Vl%40@127.0.0.1:5432/barber_db")
 engine = create_engine(SQLALCHEMY_DATABASE_URL)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
 Base = declarative_base()
 
 def get_db():
