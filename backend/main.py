@@ -576,7 +576,7 @@ def atualizar_configuracao(slug: str, barbeiro_id: int, config_update: schemas.C
     db.refresh(config)
     return config
     
-@app.websocket("/api/ws/{user_id}")
+@app.websocket("/ws/{user_id}")
 async def websocket_endpoint(websocket: WebSocket, user_id: int):
     await manager.connect(websocket, user_id)
     try:
