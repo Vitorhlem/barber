@@ -16,11 +16,11 @@ export const useAuthStore = defineStore('auth', () => {
   async function login(slug: string, email: string, senha: string) {
     erro.value = null
     try {
-      const response = await fetch(`http://localhost:8000/${slug}/login/`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, senha })
-      })
+      const response = await fetch(`/api/${slug}/login/`, {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ email, senha })
+})
       
       if (!response.ok) {
         const errorData = await response.json()

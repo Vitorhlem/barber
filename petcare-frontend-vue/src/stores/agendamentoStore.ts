@@ -30,21 +30,18 @@ export const useAgendamentoStore = defineStore('agendamentos', () => {
   const unreadCount = ref(0)
   const hasNewNotification = ref(false)
   
-  const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-  const apiUrl = isLocalhost 
-    ? 'http://localhost:8000' 
-    : 'https://barberbase-api-backend.onrender.com'
+  // CORREÇÃO: Utilizando a rota /api configurada no Nginx do servidor
+  const apiUrl = '/api'
 
   let socket: WebSocket | null = null
   const carregando = ref(false)
   const erro = ref('')
-  // NOVO: Adicionado 'slug' como parâmetro
+  
   async function fetchAgendamentos(slug: string) {
     const auth = useAuthStore()
-    if (!auth.userId || !slug) return // Garante que temos o ID do usuário e o link da loja
+    if (!auth.userId || !slug) return 
 
     try {
-      // Injeta o slug no início da rota da API
       const url = auth.userType === 'barbeiro' || auth.userType === 'admin'
         ? `/${slug}/agendamentos/barbeiro/${auth.userId}` 
         : `/${slug}/usuarios/${auth.userId}/agendamentos` 
@@ -58,27 +55,27 @@ export const useAgendamentoStore = defineStore('agendamentos', () => {
     }
   }
 
-  // NOVO: Passa o slug também para a conexão WebSocket para que, quando ele receber msg,
-  // consiga atualizar os agendamentos chamando fetchAgendamentos(slug)
   function connectWebSocket(slug: string) {
     const auth = useAuthStore()
     if (!auth.userId) return
     
-    const wsUrl = apiUrl.replace('http', 'ws').replace('https', 'wss')
-    socket = new WebSocket(`${wsUrl}/ws/${auth.userId}`)
+    // CORREÇÃO: Montagem dinâmica da URL do WebSocket para funcionar em Produção e Local
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const host = window.location.host;
+    const wsBaseUrl = `${protocol}//${host}/api`;
+    
+    socket = new WebSocket(`${wsBaseUrl}/ws/${auth.userId}`)
     
     socket.onmessage = (event) => {
-      // Usando JSON.parse para tratar ações
       try {
         const data = JSON.parse(event.data)
         if (data.action === "UPDATE_AGENDAMENTOS") {
             notifications.value.push("Um agendamento foi atualizado!")
             unreadCount.value++
             hasNewNotification.value = true
-            fetchAgendamentos(slug) // Passa o slug na hora de atualizar
+            fetchAgendamentos(slug) 
         }
       } catch (e) {
-        // Fallback caso a msg seja um texto simples
         notifications.value.push(event.data)
         unreadCount.value++
         hasNewNotification.value = true
@@ -97,7 +94,7 @@ export const useAgendamentoStore = defineStore('agendamentos', () => {
   }
 
   return { 
-    carregando, // <-- Adicionado
+    carregando, 
     erro,
     agendamentos, 
     notifications, 

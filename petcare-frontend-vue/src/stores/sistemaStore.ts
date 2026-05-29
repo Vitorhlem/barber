@@ -11,7 +11,7 @@ export const useSistemaStore = defineStore('sistema', () => {
     
     try {
       // API com o prefixo dinâmico do slug
-      const res = await fetch(`http://localhost:8000/${slug}/sistema/config`)
+      const res = await fetch(`/api/${slug}/sistema/config`)
       
       if (res.ok) {
         const data = await res.json()
