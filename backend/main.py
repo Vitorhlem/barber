@@ -32,9 +32,12 @@ app = FastAPI(title="BarberBase API - SaaS")
 os.makedirs("uploads", exist_ok=True)
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
+# --- VARIÁVEIS DE AMBIENTE (Automático Local vs Produção) ---
+API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000")
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
+GOOGLE_REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI", "http://localhost:8000/auth/callback")
 
 # --- DEPENDÊNCIA: ISOLAMENTO POR BARBEARIA (SaaS) ---
-# Esta função verifica o slug na URL e impede que dados vazem entre barbearias
 def obter_barbearia(slug: str, db: Session = Depends(get_db)):
     barbearia = db.query(models.Barbearia).filter(models.Barbearia.slug == slug).first()
     if not barbearia:
@@ -49,7 +52,8 @@ async def upload_imagem(file: UploadFile = File(...)):
     file_location = f"uploads/{file.filename}"
     with open(file_location, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
-    return {"url": f"http://localhost:8000/uploads/{file.filename}"}
+    # Usa variável de ambiente para decidir se é localhost ou domínio oficial
+    return {"url": f"{API_BASE_URL}/uploads/{file.filename}"}
 
 # --- GERENCIADOR DE WEB SOCKETS ---
 class ConnectionManager:
@@ -80,7 +84,7 @@ manager = ConnectionManager()
 # --- CORS ---
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_origins=[FRONTEND_URL, "http://localhost:5173", "http://127.0.0.1:5173", "http://barber.ravitex.com.br", "https://barber.ravitex.com.br"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -118,16 +122,12 @@ def criar_evento_google(token_entry, agendamento, db):
 
 
 # --- ROTA SUPER ADMIN (Criar Barbearias) ---
-# Apenas quem for dono do sistema SaaS deve acessar esta rota. 
 @app.post("/admin/barbearias/")
 def criar_barbearia(nome: str, slug: str, usuario_logado_id: int, db: Session = Depends(get_db)):
-    
-    # 1. Verifica se quem está tentando criar a loja é realmente o Admin dono do SaaS
     usuario = db.query(models.Usuario).filter(models.Usuario.id == usuario_logado_id).first()
     if not usuario or usuario.tipo != "admin":
         raise HTTPException(status_code=403, detail="Acesso negado: Apenas o Super Admin pode criar novas lojas.")
 
-    # 2. Verificação de slug duplicado
     existe = db.query(models.Barbearia).filter(models.Barbearia.slug == slug).first()
     if existe:
         raise HTTPException(status_code=400, detail="Já existe uma loja com este link/slug.")
@@ -136,7 +136,8 @@ def criar_barbearia(nome: str, slug: str, usuario_logado_id: int, db: Session = 
     db.add(nova_barbearia)
     db.commit()
     db.refresh(nova_barbearia)
-    return {"message": "Barbearia criada com sucesso", "barbearia": nova_barbearia.nome, "link": f"localhost:5173/{nova_barbearia.slug}/login"}
+    return {"message": "Barbearia criada com sucesso", "barbearia": nova_barbearia.nome, "link": f"{FRONTEND_URL}/{nova_barbearia.slug}/login"}
+
 # --- ROTAS DE AUTENTICAÇÃO ---
 @app.get("/{slug}/auth/google/login")
 async def login_google(slug: str, user_id: int):
@@ -144,10 +145,9 @@ async def login_google(slug: str, user_id: int):
     code_challenge = base64.urlsafe_b64encode(hashlib.sha256(code_verifier.encode()).digest()).decode().replace("=", "")
     state_id = str(uuid.uuid4())
     
-    # Guarda o slug para saber para onde redirecionar depois
     auth_state_store[state_id] = {"user_id": user_id, "code_verifier": code_verifier, "slug": slug}
     
-    flow = Flow.from_client_secrets_file("client_secret.json", scopes=['https://www.googleapis.com/auth/calendar'], redirect_uri='http://localhost:8000/auth/callback')
+    flow = Flow.from_client_secrets_file("client_secret.json", scopes=['https://www.googleapis.com/auth/calendar'], redirect_uri=GOOGLE_REDIRECT_URI)
     auth_url, _ = flow.authorization_url(prompt='consent', access_type='offline', state=state_id, code_challenge=code_challenge, code_challenge_method='S256')
     return {"url": auth_url}
 
@@ -159,10 +159,10 @@ async def oauth2_callback(code: str, state: str, db: Session = Depends(get_db)):
     
     user_id = data["user_id"]
     code_verifier = data["code_verifier"]
-    slug = data.get("slug", "") # Recupera o slug da loja
+    slug = data.get("slug", "") 
     del auth_state_store[state]
 
-    flow = Flow.from_client_secrets_file("client_secret.json", scopes=['https://www.googleapis.com/auth/calendar'], redirect_uri='http://localhost:8000/auth/callback')
+    flow = Flow.from_client_secrets_file("client_secret.json", scopes=['https://www.googleapis.com/auth/calendar'], redirect_uri=GOOGLE_REDIRECT_URI)
     flow.fetch_token(code=code, code_verifier=code_verifier)
     creds = flow.credentials
 
@@ -177,8 +177,7 @@ async def oauth2_callback(code: str, state: str, db: Session = Depends(get_db)):
     token_entry.token_expiry = creds.expiry
     db.commit()
     
-    # Redireciona para o dashboard da loja correta
-    return RedirectResponse(url=f"http://localhost:5173/{data.get('slug')}/dashboard")
+    return RedirectResponse(url=f"{FRONTEND_URL}/{data.get('slug')}/dashboard")
 
 # --- ROTAS DE USUÁRIOS E AGENDAMENTOS ---
 @app.post("/{slug}/usuarios/", response_model=schemas.UsuarioResponse)
@@ -189,7 +188,7 @@ def criar_usuario(slug: str, usuario: schemas.UsuarioCreate, db: Session = Depen
         senha_hash=usuario.senha, 
         tipo=usuario.tipo, 
         telefone=usuario.telefone,
-        barbearia_id=barbearia.id # Vincula o usuário à loja correta
+        barbearia_id=barbearia.id 
     )
     db.add(db_usuario)
     try:
@@ -204,7 +203,7 @@ def criar_usuario(slug: str, usuario: schemas.UsuarioCreate, db: Session = Depen
 def login(slug: str, usuario: schemas.UsuarioLogin, db: Session = Depends(get_db), barbearia: models.Barbearia = Depends(obter_barbearia)):
     db_usuario = db.query(models.Usuario).filter(
         models.Usuario.email == usuario.email,
-        models.Usuario.barbearia_id == barbearia.id # Garante que o login só funciona na loja que ele pertence
+        models.Usuario.barbearia_id == barbearia.id 
     ).first()
     if not db_usuario or db_usuario.senha_hash != usuario.senha:
         raise HTTPException(status_code=401, detail="E-mail ou senha incorretos para esta barbearia")
@@ -291,7 +290,7 @@ def buscar_agendamento(slug: str, agendamento_id: int, db: Session = Depends(get
         joinedload(models.Agendamento.barbeiro)
     ).filter(
         models.Agendamento.id == agendamento_id,
-        models.Agendamento.barbearia_id == barbearia.id # Garante que o agendamento pertence à loja correta
+        models.Agendamento.barbearia_id == barbearia.id 
     ).first()
     
     if not agendamento:
@@ -305,7 +304,6 @@ def alterar_senha(slug: str, user_id: int, dados: schemas.AlterarSenhaRequest, d
     if not usuario:
         raise HTTPException(status_code=404, detail="Usuário não encontrado.")
     
-    # Valida a senha atual
     if usuario.senha_hash != dados.senha_atual:
         raise HTTPException(status_code=400, detail="A senha atual informada está incorreta.")
         
@@ -317,12 +315,10 @@ def alterar_senha(slug: str, user_id: int, dados: schemas.AlterarSenhaRequest, d
 # --- ROTA: ALTERAR SLUG/LINK DA BARBEARIA (CRÍTICO) ---
 @app.put("/{slug}/sistema/alterar-slug")
 def alterar_slug(slug: str, dados: schemas.AlterarSlugRequest, usuario_logado_id: int, db: Session = Depends(get_db), barbearia: models.Barbearia = Depends(obter_barbearia)):
-    # 1. Garante que apenas o Administrador local da barbearia pode fazer essa alteração
     usuario = db.query(models.Usuario).filter(models.Usuario.id == usuario_logado_id, models.Usuario.barbearia_id == barbearia.id).first()
     if not usuario or usuario.tipo != "admin":
         raise HTTPException(status_code=403, detail="Acesso negado: Apenas administradores podem alterar o link da loja.")
     
-    # 2. Normaliza o novo slug (reemplaza espaços por hifens e força minúsculas)
     novo_slug_formatado = dados.novo_slug.strip().lower().replace(" ", "-")
     
     if not novo_slug_formatado:
@@ -331,12 +327,10 @@ def alterar_slug(slug: str, dados: schemas.AlterarSlugRequest, usuario_logado_id
     if novo_slug_formatado == slug:
         return {"message": "O link informado já é o link atual desta loja.", "novo_slug": slug}
 
-    # 3. Verifica se o novo slug já está sendo usado por outra barbearia no ecossistema
     existe = db.query(models.Barbearia).filter(models.Barbearia.slug == novo_slug_formatado).first()
     if existe:
         raise HTTPException(status_code=400, detail="Este link de acesso já está em uso por outra barbearia. Escolha outro.")
     
-    # 4. Aplica a alteração
     barbearia.slug = novo_slug_formatado
     db.commit()
     db.refresh(barbearia)
@@ -494,7 +488,6 @@ def deletar_produto(slug: str, produto_id: int, db: Session = Depends(get_db), b
 # --- CONFIGURAÇÃO E DADOS DA BARBEARIA (Substituindo ConfiguracaoSistema) ---
 @app.get("/{slug}/sistema/config")
 def obter_configuracao_sistema(slug: str, db: Session = Depends(get_db), barbearia: models.Barbearia = Depends(obter_barbearia)):
-    # Agora a configuração global visual do site (logo e nome) vêm da própria Barbearia
     return {
         "nome_barbearia": barbearia.nome,
         "logo_url": barbearia.logo_url
@@ -502,7 +495,6 @@ def obter_configuracao_sistema(slug: str, db: Session = Depends(get_db), barbear
 
 @app.put("/{slug}/sistema/config")
 def atualizar_configuracao_sistema(slug: str, config_update: schemas.ConfiguracaoSistemaBase, db: Session = Depends(get_db), barbearia: models.Barbearia = Depends(obter_barbearia)):
-    # Correção: O schema correto aqui é ConfiguracaoSistemaBase, e não ConfiguracaoBarbeiroBase
     barbearia.nome = config_update.nome_barbearia
     barbearia.logo_url = config_update.logo_url
     db.commit()
@@ -551,11 +543,9 @@ def atualizar_configuracao(slug: str, barbeiro_id: int, config_update: schemas.C
     ).first()
     
     if not config:
-        # Se não existir, cria e já vincula à barbearia correta
         config = models.ConfiguracaoBarbeiro(barbeiro_id=barbeiro_id, barbearia_id=barbearia.id)
         db.add(config)
     
-    # Atualiza apenas os campos permitidos
     config.intervalo_minutos = config_update.intervalo_minutos
     config.horarios_json = config_update.horarios_json
     config.loja_aberta = config_update.loja_aberta
@@ -563,9 +553,9 @@ def atualizar_configuracao(slug: str, barbeiro_id: int, config_update: schemas.C
     db.commit()
     db.refresh(config)
     return config
+    
 @app.websocket("/ws/{user_id}")
 async def websocket_endpoint(websocket: WebSocket, user_id: int):
-    # O websocket pode se manter igual, pois rastreia direto o ID do usuário (já vinculado à loja ao logar)
     await manager.connect(websocket, user_id)
     try:
         while True:

@@ -90,7 +90,7 @@ const carregando = ref(true)
 
 const fetchProdutos = async () => {
   try {
-    const res = await fetch(`http://localhost:8000/${slug}/produtos/`)
+    const res = await fetch(`${import.meta.env.VITE_API_URL}/${slug}/produtos/`)
     if (res.ok) {
       produtos.value = await res.json()
     }

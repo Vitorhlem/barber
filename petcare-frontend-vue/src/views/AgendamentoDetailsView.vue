@@ -194,7 +194,7 @@ const corEstado = (status: string) => {
 
 const alterarEstado = async (novoEstado: string) => {
   try {
-    const response = await fetch(`http://localhost:8000/${route.params.slug}/agendamentos/${agendamento.value.id}`, { 
+    const response = await fetch(`${import.meta.env.VITE_API_URL}/${route.params.slug}/agendamentos/${agendamento.value.id}`, { 
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status: novoEstado })
@@ -220,7 +220,7 @@ const confirmarCancelamento = () => {
   cancel: { flat: true, color: 'grey-8', label: 'Não, recuar', noCaps: true }
 }).onOk(async () => {
     try {
-      await fetch(`http://localhost:8000/${route.params.slug}/agendamentos/${agendamento.value.id}`, { method: 'DELETE' })
+      await fetch(`${import.meta.env.VITE_API_URL}/${route.params.slug}/agendamentos/${agendamento.value.id}`, { method: 'DELETE' })
       $q.notify({ type: 'positive', message: 'Cancelado com sucesso.', position: 'top' })
       router.push(`/${route.params.slug}/dashboard`)
     } catch (error) {
@@ -233,7 +233,7 @@ onMounted(async () => {
   const idAgendamento = Number(route.params.id)
   
   try {
-    const response = await fetch(`http://localhost:8000/${route.params.slug}/agendamentos/${idAgendamento}`)
+    const response = await fetch(`${import.meta.env.VITE_API_URL}/${route.params.slug}/agendamentos/${idAgendamento}`)
     if (!response.ok) throw new Error('Não encontrado')
     agendamento.value = await response.json()
   } catch (error) {
