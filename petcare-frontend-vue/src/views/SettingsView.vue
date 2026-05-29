@@ -22,24 +22,37 @@
 
           <!-- Personalização do Sistema -->
           <q-card v-if="authStore.userType === 'admin' || authStore.userType === 'barbeiro'" class="settings-card shadow-12 border-warning q-mb-lg">
-            <q-card-section class="q-pa-xl">
-              <div class="text-h5 text-weight-bolder text-primary q-mb-md">Personalização do Sistema</div>
-              <div class="row q-col-gutter-md">
-                <div class="col-12">
-                  <q-input v-model="configSistema.nome_barbearia" label="Nome da Barbearia" outlined color="primary" class="custom-input" />
-                </div>
-                <div class="col-12 col-sm-6">
-                  <q-file v-model="logoUpload" label="Carregar Logo do Computador" outlined color="primary" class="custom-input" accept="image/*" clearable>
-                    <template v-slot:prepend><q-icon name="attach_file" color="grey-6" /></template>
-                  </q-file>
-                </div>
-                <div class="col-12 col-sm-6">
-                  <q-input v-model="configSistema.logo_url" label="Ou URL da Logo" placeholder="https://..." outlined color="primary" class="custom-input" />
-                </div>
-              </div>
+            <q-card-section class="bg-amber-1 text-black q-pa-xl" style="border-bottom: 1px solid #fcd34d;">
+              <div class="text-h5 text-weight-bolder text-amber-9 letter-spacing">Endereço Exclusivo da Loja</div>
+              <div class="text-subtitle2 text-amber-8 q-mt-xs text-weight-medium">Configure o link que identifica a sua barbearia no sistema.</div>
+              
+              <q-banner inline-actions class="bg-warning text-black q-mt-lg rounded-borders shadow-2">
+                <template v-slot:avatar>
+                  <q-icon name="warning" color="dark" size="md" />
+                </template>
+                <span class="text-weight-bold">Atenção ao alterar o link da sua loja!</span><br>
+                Se alterar este endereço, o link atual deixará de funcionar imediatamente. Os seus clientes perderão o acesso através dos links antigos ou QR Codes impressos.
+              </q-banner>
             </q-card-section>
-            <q-card-actions align="right" class="q-pa-md bg-grey-1">
-              <q-btn color="primary" label="Salvar Marca" class="action-btn shadow-2" @click="salvarMarca" unelevated no-caps />
+
+            <q-card-section class="q-pa-xl">
+              <div class="text-subtitle2 text-weight-bold text-grey-8 q-mb-sm">Link de acesso atual:</div>
+              <code class="bg-grey-3 q-pa-sm rounded-borders text-secondary block q-mb-lg text-body1 text-weight-medium">
+                localhost:5173/{{ authStore.barbeariaSlug }}/login
+              </code>
+
+              <q-input 
+                v-model="novoSlug" 
+                label="Novo Link Desejado (Ex: barbearia-do-bairro)" 
+                outlined 
+                color="amber-9"
+                class="custom-input"
+                hint="Evite espaços ou caracteres especiais. Eles serão convertidos em hifens."
+              />
+            </q-card-section>
+
+            <q-card-actions align="right" class="q-pa-md bg-amber-1">
+              <q-btn color="negative" label="Alterar Link da Loja" class="action-btn shadow-2" @click="confirmarAlteracaoSlug" :loading="loadingSlug" unelevated no-caps />
             </q-card-actions>
           </q-card>
 

@@ -339,8 +339,18 @@ def alterar_senha(slug: str, user_id: int, dados: schemas.AlterarSenhaRequest, d
 # --- ROTA: ALTERAR SLUG/LINK DA BARBEARIA (CRÍTICO) ---
 @app.put("/{slug}/sistema/alterar-slug")
 def alterar_slug(slug: str, dados: schemas.AlterarSlugRequest, usuario_logado_id: int, db: Session = Depends(get_db), barbearia: models.Barbearia = Depends(obter_barbearia)):
+    
+    # 1. Busca o usuário no banco para garantir que ele pertence a esta barbearia
     usuario = db.query(models.Usuario).filter(models.Usuario.id == usuario_logado_id, models.Usuario.barbearia_id == barbearia.id).first()
 
+    # 2. VERIFICAÇÃO DE SEGURANÇA: Checa se o usuário existe e se é admin ou barbeiro
+    if not usuario or usuario.tipo not in ["admin", "barbeiro"]:
+        raise HTTPException(
+            status_code=403, 
+            detail="Acesso negado. Apenas administradores ou membros da equipe podem alterar o link da loja."
+        )
+
+    # 3. Formata o novo link (slug)
     novo_slug_formatado = dados.novo_slug.strip().lower().replace(" ", "-")
     
     if not novo_slug_formatado:
@@ -349,16 +359,17 @@ def alterar_slug(slug: str, dados: schemas.AlterarSlugRequest, usuario_logado_id
     if novo_slug_formatado == slug:
         return {"message": "O link informado já é o link atual desta loja.", "novo_slug": slug}
 
+    # 4. Verifica se o novo link já está sendo usado por outra loja
     existe = db.query(models.Barbearia).filter(models.Barbearia.slug == novo_slug_formatado).first()
     if existe:
         raise HTTPException(status_code=400, detail="Este link de acesso já está em uso por outra barbearia. Escolha outro.")
     
+    # 5. Salva a alteração
     barbearia.slug = novo_slug_formatado
     db.commit()
     db.refresh(barbearia)
     
     return {"message": "Link da barbearia alterado com sucesso!", "novo_slug": barbearia.slug}
-
 @app.get("/{slug}/usuarios/{cliente_id}/agendamentos")
 def listar_agendamentos_cliente(slug: str, cliente_id: int, db: Session = Depends(get_db), barbearia: models.Barbearia = Depends(obter_barbearia)):
     return db.query(models.Agendamento).options(

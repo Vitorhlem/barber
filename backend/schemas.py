@@ -145,3 +145,4 @@ class AlterarSenhaRequest(BaseModel):
 
 class AlterarSlugRequest(BaseModel):
     novo_slug: str
+
