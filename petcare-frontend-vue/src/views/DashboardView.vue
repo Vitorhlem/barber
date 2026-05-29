@@ -405,11 +405,17 @@ const categoriasLoja = ['Bonés', 'Relógios', 'Perfumes', 'Camisas', 'Óleos e 
 const novoProduto = ref({ nome: '', descricao: '', preco: 0, categoria: 'Outros', imagem_url: '' })
 
 const inicializarWebSocket = () => {
-  const userId = authStore.userId 
+  const userId = authStore.userId
   if (!userId) return
 
-  ws = new WebSocket(`ws://localhost:8000/ws/${userId}`)
-  
+  let wsUrl = import.meta.env.VITE_API_URL.replace('http', 'ws').replace('https', 'wss')
+  if (wsUrl.startsWith('/')) {
+     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+     wsUrl = `${protocol}//${window.location.host}${wsUrl}`
+  }
+
+  ws = new WebSocket(`${wsUrl}/ws/${userId}`)
+
   ws.onopen = () => {
     wsConnected.value = true
   }
@@ -418,7 +424,7 @@ const inicializarWebSocket = () => {
     try {
       const data = JSON.parse(event.data)
       if (data.action === "UPDATE_AGENDAMENTOS") {
-        agendamentoStore.fetchAgendamentos(slug) // Enviando slug para a store atualizar
+        agendamentoStore.fetchAgendamentos(slug)
       } else if (data.action === "UPDATE_BLOQUEIOS") {
         fetchBloqueios()
       }

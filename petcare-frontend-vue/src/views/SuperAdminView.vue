@@ -80,9 +80,10 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useQuasar } from 'quasar'
+import { useAuthStore } from '@/stores/authStore' // Importa a Store de Autenticação
 
 const $q = useQuasar()
-
+const authStore = useAuthStore() // Inicializa a Store
 const carregando = ref(false)
 const erro = ref('')
 const linkGerado = ref('')
@@ -95,14 +96,14 @@ const form = ref({
 // Função inteligente que auto-preenche o slug criando uma URL amigável
 // Ex: Se digitar "Barbearia do Zé", o slug vira "barbearia-do-ze"
 const gerarSlug = (novoNome: string | number | null) => {
-  if (typeof novoNome === 'string' && !linkGerado.value) { // Só auto-preenche se ainda não tiver gerado uma loja
+  if (typeof novoNome === 'string' && !linkGerado.value) { 
     form.value.slug = novoNome
       .toLowerCase()
       .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "") // remove acentuação
-      .replace(/[^a-z0-9 ]/g, "") // remove caracteres não permitidos
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9 ]/g, "")
       .trim()
-      .replace(/\s+/g, "-"); // substitui espaços por hífen
+      .replace(/\s+/g, "-"); 
   }
 }
 
@@ -112,10 +113,11 @@ const criarLoja = async () => {
   carregando.value = true
   
   try {
-    // Transforma os dados em parâmetros de URL para bater com o formato do backend FastAPI
+    // Adicionado o usuario_logado_id conforme exigido pelo Backend
     const params = new URLSearchParams({
       nome: form.value.nome,
-      slug: form.value.slug
+      slug: form.value.slug,
+      usuario_logado_id: String(authStore.userId) 
     })
 
     const response = await fetch(`${import.meta.env.VITE_API_URL}/admin/barbearias/?${params.toString()}`, {
@@ -132,10 +134,8 @@ const criarLoja = async () => {
 
     $q.notify({ type: 'positive', message: 'Barbearia criada com sucesso no sistema!', position: 'top' })
     
-    // Mostra o link de acesso exclusivo da loja na tela
     linkGerado.value = `http://${data.link}`
 
-    // Mantém o link visível, mas limpa os inputs caso o Admin queira cadastrar mais lojas
     form.value.nome = ''
     form.value.slug = ''
 

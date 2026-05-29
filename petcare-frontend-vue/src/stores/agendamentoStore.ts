@@ -1,8 +1,8 @@
+// agendamentoStore.ts
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { useAuthStore } from './authStore'
 
-// Definição da interface opcional para tipagem do Typescript
 interface Usuario {
   id: number;
   nome: string;
@@ -30,8 +30,7 @@ export const useAgendamentoStore = defineStore('agendamentos', () => {
   const unreadCount = ref(0)
   const hasNewNotification = ref(false)
   
-  // CORREÇÃO: Utilizando a rota /api configurada no Nginx do servidor
-  const apiUrl = '/api'
+  const apiUrl = import.meta.env.VITE_API_URL
 
   let socket: WebSocket | null = null
   const carregando = ref(false)
@@ -59,12 +58,13 @@ export const useAgendamentoStore = defineStore('agendamentos', () => {
     const auth = useAuthStore()
     if (!auth.userId) return
     
-    // CORREÇÃO: Montagem dinâmica da URL do WebSocket para funcionar em Produção e Local
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = window.location.host;
-    const wsBaseUrl = `${protocol}//${host}/api`;
+    let wsUrl = apiUrl.replace('http', 'ws').replace('https', 'wss')
+    if (wsUrl.startsWith('/')) {
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+      wsUrl = `${protocol}//${window.location.host}${wsUrl}`
+    }
     
-    socket = new WebSocket(`${wsBaseUrl}/ws/${auth.userId}`)
+    socket = new WebSocket(`${wsUrl}/ws/${auth.userId}`)
     
     socket.onmessage = (event) => {
       try {
