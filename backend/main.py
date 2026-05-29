@@ -123,21 +123,45 @@ def criar_evento_google(token_entry, agendamento, db):
 
 # --- ROTA SUPER ADMIN (Criar Barbearias) ---
 @app.post("/admin/barbearias/")
-def criar_barbearia(nome: str, slug: str, usuario_logado_id: int, db: Session = Depends(get_db)):
+def criar_barbearia(nome: str, slug: str, usuario_logado_id: int, admin_nome: str, admin_email: str, admin_senha: str, db: Session = Depends(get_db)):
+    # 1. Verifica se quem está criando é realmente o Super Admin
     usuario = db.query(models.Usuario).filter(models.Usuario.id == usuario_logado_id).first()
-    if not usuario or usuario.tipo != "admin":
+    if not usuario or usuario.tipo != "admin" or usuario.barbearia_id != 1:
         raise HTTPException(status_code=403, detail="Acesso negado: Apenas o Super Admin pode criar novas lojas.")
 
+    # 2. Verifica se a loja já existe
     existe = db.query(models.Barbearia).filter(models.Barbearia.slug == slug).first()
     if existe:
         raise HTTPException(status_code=400, detail="Já existe uma loja com este link/slug.")
+        
+    # 3. Verifica se o e-mail do novo dono já está em uso
+    email_existe = db.query(models.Usuario).filter(models.Usuario.email == admin_email).first()
+    if email_existe:
+        raise HTTPException(status_code=400, detail="Este e-mail já está sendo usado por outro usuário.")
     
+    # 4. Cria a loja
     nova_barbearia = models.Barbearia(nome=nome, slug=slug)
     db.add(nova_barbearia)
     db.commit()
     db.refresh(nova_barbearia)
-    return {"message": "Barbearia criada com sucesso", "barbearia": nova_barbearia.nome, "link": f"{FRONTEND_URL}/{nova_barbearia.slug}/login"}
-
+    
+    # 5. Cria o dono da loja (Admin local) vinculado à loja recém-criada
+    novo_dono = models.Usuario(
+        nome=admin_nome,
+        email=admin_email,
+        senha_hash=admin_senha,
+        tipo="barbeiro",
+        telefone="",
+        barbearia_id=nova_barbearia.id
+    )
+    db.add(novo_dono)
+    db.commit()
+    
+    return {
+        "message": "Barbearia e Dono criados com sucesso", 
+        "barbearia": nova_barbearia.nome, 
+        "link": f"{FRONTEND_URL}/{nova_barbearia.slug}/login"
+    }
 # --- ROTAS DE AUTENTICAÇÃO ---
 @app.get("/{slug}/auth/google/login")
 async def login_google(slug: str, user_id: int):
@@ -316,9 +340,7 @@ def alterar_senha(slug: str, user_id: int, dados: schemas.AlterarSenhaRequest, d
 @app.put("/{slug}/sistema/alterar-slug")
 def alterar_slug(slug: str, dados: schemas.AlterarSlugRequest, usuario_logado_id: int, db: Session = Depends(get_db), barbearia: models.Barbearia = Depends(obter_barbearia)):
     usuario = db.query(models.Usuario).filter(models.Usuario.id == usuario_logado_id, models.Usuario.barbearia_id == barbearia.id).first()
-    if not usuario or usuario.tipo != "admin":
-        raise HTTPException(status_code=403, detail="Acesso negado: Apenas administradores podem alterar o link da loja.")
-    
+
     novo_slug_formatado = dados.novo_slug.strip().lower().replace(" ", "-")
     
     if not novo_slug_formatado:
@@ -562,3 +584,42 @@ async def websocket_endpoint(websocket: WebSocket, user_id: int):
             await websocket.receive_text()
     except WebSocketDisconnect:
         manager.disconnect(websocket, user_id)
+
+@app.post("/{slug}/barbeiros/", response_model=schemas.UsuarioResponse)
+def criar_barbeiro(slug: str, usuario_logado_id: int, barbeiro: schemas.UsuarioCreate, db: Session = Depends(get_db), barbearia: models.Barbearia = Depends(obter_barbearia)):
+    # 1. Verifica se quem está criando é realmente o administrador desta barbearia
+    admin = db.query(models.Usuario).filter(models.Usuario.id == usuario_logado_id, models.Usuario.barbearia_id == barbearia.id).first()
+    if not admin or admin.tipo != "admin":
+        raise HTTPException(status_code=403, detail="Acesso negado. Apenas o administrador pode adicionar equipe.")
+    
+    # 2. Cria o barbeiro e vincula automaticamente à mesma barbearia
+    db_usuario = models.Usuario(
+        nome=barbeiro.nome, 
+        email=barbeiro.email, 
+        senha_hash=barbeiro.senha, 
+        tipo="barbeiro", 
+        telefone=barbeiro.telefone,
+        barbearia_id=barbearia.id
+    )
+    db.add(db_usuario)
+    try:
+        db.commit()
+        db.refresh(db_usuario)
+        return db_usuario
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Este e-mail já está cadastrado no sistema.")
+
+@app.delete("/{slug}/barbeiros/{barbeiro_id}")
+def deletar_barbeiro(slug: str, barbeiro_id: int, usuario_logado_id: int, db: Session = Depends(get_db), barbearia: models.Barbearia = Depends(obter_barbearia)):
+    admin = db.query(models.Usuario).filter(models.Usuario.id == usuario_logado_id, models.Usuario.barbearia_id == barbearia.id).first()
+    if not admin or admin.tipo != "admin":
+        raise HTTPException(status_code=403, detail="Acesso negado.")
+        
+    barbeiro = db.query(models.Usuario).filter(models.Usuario.id == barbeiro_id, models.Usuario.barbearia_id == barbearia.id, models.Usuario.tipo == "barbeiro").first()
+    if not barbeiro:
+        raise HTTPException(status_code=404, detail="Barbeiro não encontrado.")
+        
+    db.delete(barbeiro)
+    db.commit()
+    return {"message": "Barbeiro removido com sucesso."}

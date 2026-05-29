@@ -15,39 +15,32 @@
             
             <q-form @submit.prevent="criarLoja" class="q-gutter-y-md">
               
-              <q-input 
-                v-model="form.nome" 
-                label="Nome da Barbearia" 
-                outlined 
-                color="primary" 
-                class="custom-input" 
-                :rules="[val => !!val || 'O nome é obrigatório']"
-                @update:model-value="gerarSlug"
-                hide-bottom-space
-              >
+              <div class="text-subtitle2 text-primary text-weight-bold q-mt-md">Dados da Loja</div>
+              <q-input v-model="form.nome" label="Nome da Barbearia" outlined color="primary" class="custom-input" :rules="[val => !!val || 'O nome é obrigatório']" @update:model-value="gerarSlug" hide-bottom-space>
                 <template v-slot:prepend><q-icon name="storefront" color="grey-6" /></template>
               </q-input>
 
-              <q-input 
-                v-model="form.slug" 
-                label="Link / Slug da Loja" 
-                outlined 
-                color="primary" 
-                class="custom-input" 
-                hint="Ex: barbearia-do-ze"
-                :rules="[
-                  val => !!val || 'O slug é obrigatório',
-                  val => /^[a-z0-9-]+$/.test(val) || 'Apenas letras minúsculas, números e hifens permitidos'
-                ]"
-                hide-bottom-space
-              >
+              <q-input v-model="form.slug" label="Link / Slug da Loja" outlined color="primary" class="custom-input" hint="Ex: barbearia-do-ze" :rules="[val => !!val || 'O slug é obrigatório', val => /^[a-z0-9-]+$/.test(val) || 'Apenas minúsculas, números e hifens']" hide-bottom-space>
                 <template v-slot:prepend><q-icon name="link" color="grey-6" /></template>
+              </q-input>
+
+              <div class="text-subtitle2 text-primary text-weight-bold q-mt-lg">Dados do Dono (Administrador Local)</div>
+              <q-input v-model="form.admin_nome" label="Nome do Dono" outlined color="primary" class="custom-input" :rules="[val => !!val || 'Obrigatório']" hide-bottom-space>
+                <template v-slot:prepend><q-icon name="person" color="grey-6" /></template>
+              </q-input>
+
+              <q-input v-model="form.admin_email" type="email" label="E-mail de Acesso" outlined color="primary" class="custom-input" :rules="[val => !!val || 'Obrigatório']" hide-bottom-space>
+                <template v-slot:prepend><q-icon name="email" color="grey-6" /></template>
+              </q-input>
+
+              <q-input v-model="form.admin_senha" type="text" label="Senha Inicial" outlined color="primary" class="custom-input" :rules="[val => !!val || 'Obrigatório']" hide-bottom-space>
+                <template v-slot:prepend><q-icon name="password" color="grey-6" /></template>
               </q-input>
 
               <div v-if="linkGerado" class="success-box q-mt-md q-pa-md text-center shadow-2">
                 <q-icon name="check_circle" color="positive" size="28px" />
                 <div class="q-mt-sm text-weight-bold">Loja criada com sucesso!</div>
-                <div class="text-caption q-mb-xs">Envie este link de acesso para o dono da barbearia:</div>
+                <div class="text-caption q-mb-xs">Envie este link e as credenciais para o dono:</div>
                 <a :href="linkGerado" target="_blank" class="text-primary text-weight-bolder" style="word-break: break-all;">
                   {{ linkGerado }}
                 </a>
@@ -57,16 +50,7 @@
                 <q-icon name="error" class="q-mr-xs" size="18px" /> {{ erro }}
               </div>
 
-              <q-btn 
-                type="submit" 
-                color="primary" 
-                class="full-width q-mt-lg submit-btn" 
-                size="lg" 
-                label="Registar Barbearia" 
-                :loading="carregando" 
-                unelevated 
-                no-caps 
-              />
+              <q-btn type="submit" color="primary" class="full-width q-mt-lg submit-btn" size="lg" label="Registrar Sistema" :loading="carregando" unelevated no-caps />
             
             </q-form>
           </q-card-section>
@@ -80,21 +64,23 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useQuasar } from 'quasar'
-import { useAuthStore } from '@/stores/authStore' // Importa a Store de Autenticação
+import { useAuthStore } from '@/stores/authStore'
 
 const $q = useQuasar()
-const authStore = useAuthStore() // Inicializa a Store
+const authStore = useAuthStore()
+
 const carregando = ref(false)
 const erro = ref('')
 const linkGerado = ref('')
 
 const form = ref({
   nome: '',
-  slug: ''
+  slug: '',
+  admin_nome: '',
+  admin_email: '',
+  admin_senha: ''
 })
 
-// Função inteligente que auto-preenche o slug criando uma URL amigável
-// Ex: Se digitar "Barbearia do Zé", o slug vira "barbearia-do-ze"
 const gerarSlug = (novoNome: string | number | null) => {
   if (typeof novoNome === 'string' && !linkGerado.value) { 
     form.value.slug = novoNome
@@ -113,11 +99,13 @@ const criarLoja = async () => {
   carregando.value = true
   
   try {
-    // Adicionado o usuario_logado_id conforme exigido pelo Backend
     const params = new URLSearchParams({
       nome: form.value.nome,
       slug: form.value.slug,
-      usuario_logado_id: String(authStore.userId) 
+      usuario_logado_id: String(authStore.userId),
+      admin_nome: form.value.admin_nome,
+      admin_email: form.value.admin_email,
+      admin_senha: form.value.admin_senha
     })
 
     const response = await fetch(`${import.meta.env.VITE_API_URL}/admin/barbearias/?${params.toString()}`, {
@@ -127,17 +115,16 @@ const criarLoja = async () => {
     
     if (!response.ok) {
       const errorData = await response.json()
-      throw new Error(errorData.detail || 'Erro ao criar a barbearia. Verifique se o slug já existe.')
+      throw new Error(errorData.detail || 'Erro ao criar a barbearia.')
     }
 
     const data = await response.json()
 
-    $q.notify({ type: 'positive', message: 'Barbearia criada com sucesso no sistema!', position: 'top' })
-    
+    $q.notify({ type: 'positive', message: 'Barbearia e Dono criados com sucesso!', position: 'top' })
     linkGerado.value = data.link
 
-    form.value.nome = ''
-    form.value.slug = ''
+    // Limpa o formulário
+    form.value = { nome: '', slug: '', admin_nome: '', admin_email: '', admin_senha: '' }
 
   } catch (error: any) {
     erro.value = error.message
@@ -149,7 +136,6 @@ const criarLoja = async () => {
 
 <style scoped>
 .admin-page {
-  /* Cores de fundo diferentes para diferenciar o painel de Admin do sistema normal */
   --cor-fundo-inicio: #0f172a; 
   --cor-fundo-fim: #334155;    
   --cor-cartao-bg: rgba(255, 255, 255, 0.98);
@@ -160,46 +146,23 @@ const criarLoja = async () => {
 
 .admin-card {
   width: 100%;
-  max-width: 500px;
+  max-width: 550px;
   background: var(--cor-cartao-bg);
   border-radius: 20px;
 }
 
-.title-text {
-  color: #1e293b;
-  letter-spacing: -1px;
-}
-
-.subtitle-text {
-  color: #64748b;
-}
-
-.custom-input :deep(.q-field__control) {
-  border-radius: 12px;
-}
-
-.submit-btn {
-  border-radius: 12px;
-  font-weight: bold;
-  letter-spacing: 0.5px;
-}
+.title-text { color: #1e293b; letter-spacing: -1px; }
+.subtitle-text { color: #64748b; }
+.custom-input :deep(.q-field__control) { border-radius: 12px; }
+.submit-btn { border-radius: 12px; font-weight: bold; letter-spacing: 0.5px; }
 
 .alert-box {
-  background-color: #fee2e2;
-  color: #b91c1c;
-  border: 1px solid #f87171;
-  padding: 10px;
-  border-radius: 10px;
-  font-weight: 600;
-  font-size: 14px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  background-color: #fee2e2; color: #b91c1c; border: 1px solid #f87171;
+  padding: 10px; border-radius: 10px; font-weight: 600; font-size: 14px;
+  display: flex; align-items: center; justify-content: center;
 }
 
 .success-box {
-  background-color: #f0fdf4;
-  border: 1px solid #bbf7d0;
-  border-radius: 12px;
+  background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px;
 }
 </style>

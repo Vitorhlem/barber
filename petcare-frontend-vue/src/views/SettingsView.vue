@@ -20,7 +20,8 @@
             </q-breadcrumbs>
           </div>
 
-          <q-card v-if="authStore.userType === 'admin' || authStore.userType === 'barbeiro'" class="settings-card shadow-12 q-mb-lg">
+          <!-- Personalização do Sistema -->
+          <q-card v-if="authStore.userType === 'admin' || authStore.userType === 'barbeiro'" class="settings-card shadow-12 border-warning q-mb-lg">
             <q-card-section class="q-pa-xl">
               <div class="text-h5 text-weight-bolder text-primary q-mb-md">Personalização do Sistema</div>
               <div class="row q-col-gutter-md">
@@ -42,6 +43,7 @@
             </q-card-actions>
           </q-card>
 
+          <!-- Integrações -->
           <q-card class="settings-card shadow-12 q-mb-lg">
             <q-card-section class="q-pa-xl row items-center justify-between">
               <div class="row items-center">
@@ -67,6 +69,7 @@
             </q-card-section>
           </q-card>
 
+          <!-- Bloqueio de Dias Inteiros -->
           <q-card v-if="authStore.userType === 'barbeiro' || authStore.userType === 'admin'" class="settings-card shadow-12 q-mb-lg">
             <q-card-section class="q-pa-xl">
               <div class="row items-center q-mb-md">
@@ -112,6 +115,7 @@
             </q-card-section>
           </q-card>
 
+          <!-- Expediente -->
           <q-card v-if="authStore.userType === 'barbeiro' || authStore.userType === 'admin'" class="settings-card shadow-12 q-mb-lg">
             <q-card-section class="card-header q-pa-xl">
               <div class="row items-center">
@@ -193,6 +197,59 @@
             </q-card-actions>
           </q-card>
 
+          <!-- Gestão de Equipe (Apenas Admin) -->
+          <q-card v-if="authStore.userType === 'admin'" class="settings-card shadow-12 q-mb-lg">
+            <q-card-section class="q-pa-xl">
+              <div class="row items-center q-mb-md">
+                <div class="icon-wrapper shadow-4 q-mr-lg bg-info text-white">
+                  <q-icon name="content_cut" size="32px" />
+                </div>
+                <div>
+                  <div class="text-h5 text-weight-bolder text-info letter-spacing">Gestão de Equipe</div>
+                  <div class="text-subtitle2 text-grey-6 q-mt-xs text-weight-medium">
+                    Adicione os barbeiros que terão acesso ao sistema e agenda nesta unidade.
+                  </div>
+                </div>
+              </div>
+
+              <div class="row q-col-gutter-md items-center q-mb-xl bg-grey-1 q-pa-md rounded-borders">
+                <div class="col-12 col-sm-3">
+                  <q-input v-model="novoBarbeiro.nome" outlined dense color="info" class="custom-input-dense" label="Nome do Barbeiro" />
+                </div>
+                <div class="col-12 col-sm-3">
+                  <q-input v-model="novoBarbeiro.email" outlined dense color="info" class="custom-input-dense" label="E-mail (Login)" />
+                </div>
+                <div class="col-12 col-sm-2">
+                  <q-input v-model="novoBarbeiro.senha" outlined dense color="info" class="custom-input-dense" label="Senha" />
+                </div>
+                <div class="col-12 col-sm-2">
+                  <q-input v-model="novoBarbeiro.telefone" outlined dense color="info" class="custom-input-dense" label="Telefone" />
+                </div>
+                <div class="col-12 col-sm-2 text-right">
+                  <q-btn color="info" icon="person_add" label="Adicionar" no-caps unelevated class="action-btn full-width" @click="adicionarBarbeiro" :loading="loadingBarbeiro" />
+                </div>
+              </div>
+
+              <div class="text-subtitle1 text-weight-bolder text-grey-8 q-mb-sm">Equipe Atual</div>
+              <div v-if="listaBarbeiros.length === 0" class="text-body2 text-grey-5 q-pa-md text-center bg-grey-1 rounded-borders">
+                Nenhum barbeiro cadastrado nesta loja.
+              </div>
+              <div v-else class="schedule-container">
+                <div v-for="barb in listaBarbeiros" :key="barb.id" class="schedule-row row items-center q-pa-md q-mb-sm rounded-borders justify-between">
+                  <div class="row items-center">
+                    <q-avatar color="info" text-color="white" icon="person" size="md" class="q-mr-md" />
+                    <div>
+                      <div class="text-weight-bold text-grey-9">{{ barb.nome }}</div>
+                      <div class="text-caption text-grey-6">{{ barb.email }} • {{ barb.telefone || 'Sem telefone' }}</div>
+                    </div>
+                  </div>
+                  <q-btn flat round color="negative" icon="delete" size="sm" @click="removerBarbeiro(barb.id)" title="Remover Barbeiro" />
+                </div>
+              </div>
+            </q-card-section>
+          </q-card>
+
+          <!-- Alterar Senha de Acesso -->
           <q-card class="settings-card shadow-12 q-mb-lg">
             <q-card-section class="q-pa-xl">
               <div class="text-h5 text-weight-bolder text-primary q-mb-md">Alterar Senha de Acesso</div>
@@ -215,6 +272,7 @@
             </q-card-actions>
           </q-card>
 
+          <!-- Endereço Exclusivo da Loja -->
           <q-card v-if="authStore.userType === 'admin'" class="settings-card shadow-12 border-warning q-mb-lg">
             <q-card-section class="bg-amber-1 text-black q-pa-xl" style="border-bottom: 1px solid #fcd34d;">
               <div class="text-h5 text-weight-bolder text-amber-9 letter-spacing">Endereço Exclusivo da Loja</div>
@@ -286,6 +344,71 @@ const formSenha = ref({ senha_atual: '', nova_senha: '', confirmar_senha: '' })
 // Estados do Slug
 const loadingSlug = ref(false)
 const novoSlug = ref(authStore.barbeariaSlug)
+
+// --- ESTADOS DE GESTÃO DE EQUIPE ---
+const listaBarbeiros = ref<any[]>([])
+const loadingBarbeiro = ref(false)
+const novoBarbeiro = ref({ nome: '', email: '', senha: '', telefone: '' })
+
+const fetchBarbeiros = async () => {
+  if (authStore.userType !== 'admin') return
+  try {
+    const res = await fetch(`${import.meta.env.VITE_API_URL}/${slug}/barbeiros/`)
+    if (res.ok) listaBarbeiros.value = await res.json()
+  } catch (e) { console.error(e) }
+}
+
+const adicionarBarbeiro = async () => {
+  if (!novoBarbeiro.value.nome || !novoBarbeiro.value.email || !novoBarbeiro.value.senha) {
+    $q.notify({ color: 'warning', message: 'Preencha o Nome, E-mail e Senha do barbeiro.', position: 'top' })
+    return
+  }
+  loadingBarbeiro.value = true
+  try {
+    const res = await fetch(`${import.meta.env.VITE_API_URL}/${slug}/barbeiros/?usuario_logado_id=${authStore.userId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        nome: novoBarbeiro.value.nome,
+        email: novoBarbeiro.value.email,
+        senha: novoBarbeiro.value.senha,
+        telefone: novoBarbeiro.value.telefone,
+        tipo: 'barbeiro'
+      })
+    })
+    if (!res.ok) {
+      const errorData = await res.json()
+      throw new Error(errorData.detail || 'Erro ao criar barbeiro.')
+    }
+    $q.notify({ color: 'positive', message: 'Barbeiro adicionado à equipe!', position: 'top' })
+    novoBarbeiro.value = { nome: '', email: '', senha: '', telefone: '' }
+    fetchBarbeiros() 
+  } catch (err: any) {
+    $q.notify({ color: 'negative', message: err.message, position: 'top' })
+  } finally {
+    loadingBarbeiro.value = false
+  }
+}
+
+const removerBarbeiro = async (id: number) => {
+  $q.dialog({
+    title: 'Remover Barbeiro',
+    message: 'Tem certeza? Ele não poderá mais acessar o sistema desta barbearia.',
+    cancel: true,
+    persistent: true,
+    ok: { label: 'Sim, remover', color: 'negative', unelevated: true }
+  }).onOk(async () => {
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/${slug}/barbeiros/${id}?usuario_logado_id=${authStore.userId}`, {
+        method: 'DELETE'
+      })
+      if (res.ok) {
+        $q.notify({ color: 'positive', message: 'Barbeiro removido com sucesso.', position: 'top' })
+        fetchBarbeiros()
+      }
+    } catch (e) { console.error(e) }
+  })
+}
 
 // --- MÉTODOS ORIGINAIS ---
 const formatarDataSimples = (dataStr: string) => {
@@ -500,12 +623,10 @@ async function handleAlterarSlug() {
 
     $q.notify({ color: 'positive', message: 'Endereço da barbearia alterado com sucesso!', position: 'top' })
     
-    // Atualiza na store
     if(authStore.atualizarSlugLocal) {
       authStore.atualizarSlugLocal(data.novo_slug)
     }
     
-    // Recarrega a página no novo endereço
     router.push(`/${data.novo_slug}/settings`)
   } catch (err: any) {
     $q.notify({ color: 'negative', message: err.message, position: 'top' })
@@ -521,6 +642,7 @@ onMounted(() => {
   })
   fetchConfiguracao()
   fetchFolgas()
+  fetchBarbeiros() 
 })
 </script>
 

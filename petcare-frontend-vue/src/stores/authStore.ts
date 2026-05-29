@@ -16,7 +16,7 @@ export const useAuthStore = defineStore('auth', () => {
   async function login(slug: string, email: string, senha: string) {
     erro.value = null
     try {
-      const response = await fetch(`/api/${slug}/login/`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/${slug}/login/`, {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({ email, senha })
