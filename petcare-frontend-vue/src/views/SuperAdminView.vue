@@ -134,7 +134,7 @@ const criarLoja = async () => {
 
     $q.notify({ type: 'positive', message: 'Barbearia criada com sucesso no sistema!', position: 'top' })
     
-    linkGerado.value = `http://${data.link}`
+    linkGerado.value = data.link
 
     form.value.nome = ''
     form.value.slug = ''
