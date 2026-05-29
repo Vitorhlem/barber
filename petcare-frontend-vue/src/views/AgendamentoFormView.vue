@@ -76,8 +76,8 @@
                     >
                       <template v-slot:prepend><q-icon name="content_cut" color="grey-6" /></template>
                       <template v-slot:append v-if="form.servico">
-                        <q-badge class="price-badge shadow-1">{{ formatarPreco(tabelaPrecos[form.servico]) }}</q-badge>
-                      </template>
+  <q-badge class="price-badge shadow-1">{{ formatarPreco(tabelaPrecos[form.servico] || 0) }}</q-badge>
+</template>
                     </q-select>
                   </div>
                 </div>
@@ -252,7 +252,7 @@ const horariosDisponiveis = computed(() => {
     }
     
     if (dataSelecionada.value === hojeLocal) {
-      const [h, m] = hora.split(':').map(Number)
+      const [h, m] = hora.split(':').map(Number) as [number, number]
       const horaAtual = agora.getHours()
       const minutoAtual = agora.getMinutes()
       

@@ -203,7 +203,7 @@ const alterarEstado = async (novoEstado: string) => {
     if (!response.ok) throw new Error('Falha ao atualizar')
     
     agendamento.value.status = novoEstado
-    await agendamentoStore.fetchAgendamentos() 
+    await agendamentoStore.fetchAgendamentos(route.params.slug as string)
     
     $q.notify({ type: 'positive', message: `Agendamento alterado para ${novoEstado}`, position: 'top' })
   } catch (error) {
@@ -213,13 +213,12 @@ const alterarEstado = async (novoEstado: string) => {
 
 const confirmarCancelamento = () => {
   $q.dialog({
-    title: 'Confirmar Cancelamento',
-    message: 'Tem a certeza que pretende cancelar este agendamento?',
-    cancel: true,
-    persistent: true,
-    ok: { color: 'negative', label: 'Sim, cancelar', noCaps: true },
-    cancel: { flat: true, color: 'grey-8', label: 'Não, recuar', noCaps: true }
-  }).onOk(async () => {
+  title: 'Confirmar Cancelamento',
+  message: 'Tem a certeza que pretende cancelar este agendamento?',
+  persistent: true,
+  ok: { color: 'negative', label: 'Sim, cancelar', noCaps: true },
+  cancel: { flat: true, color: 'grey-8', label: 'Não, recuar', noCaps: true }
+}).onOk(async () => {
     try {
       await fetch(`http://localhost:8000/${route.params.slug}/agendamentos/${agendamento.value.id}`, { method: 'DELETE' })
       $q.notify({ type: 'positive', message: 'Cancelado com sucesso.', position: 'top' })

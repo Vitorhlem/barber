@@ -227,10 +227,10 @@ const servicosAgrupados = computed(() => {
   return Object.keys(contagem)
     .map(key => ({
       nome: key,
-      quantidade: contagem[key],
-      porcentagem: total > 0 ? Math.round((contagem[key] / total) * 100) : 0
+      quantidade: contagem[key] || 0,
+      porcentagem: total > 0 ? Math.round(((contagem[key] || 0) / total) * 100) : 0
     }))
-    .sort((a, b) => b.quantidade - a.quantidade)
+    .sort((a, b) => (b.quantidade || 0) - (a.quantidade || 0))
 })
 
 // Ranking: Top 5 Clientes

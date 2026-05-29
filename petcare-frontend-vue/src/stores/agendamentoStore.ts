@@ -36,7 +36,8 @@ export const useAgendamentoStore = defineStore('agendamentos', () => {
     : 'https://barberbase-api-backend.onrender.com'
 
   let socket: WebSocket | null = null
-
+  const carregando = ref(false)
+  const erro = ref('')
   // NOVO: Adicionado 'slug' como parâmetro
   async function fetchAgendamentos(slug: string) {
     const auth = useAuthStore()
@@ -96,6 +97,8 @@ export const useAgendamentoStore = defineStore('agendamentos', () => {
   }
 
   return { 
+    carregando, // <-- Adicionado
+    erro,
     agendamentos, 
     notifications, 
     unreadCount, 
