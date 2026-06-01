@@ -364,7 +364,7 @@ const novoServico = ref({ nome: '', preco: 0 })
 // FUNÇÕES DE SERVIÇOS
 const fetchServicos = async () => {
   try {
-    const res = await fetch(`${import.meta.env.VITE_API_URL}/${slug}/servicos/`)
+    const res = await fetch(`${(import.meta.env.DEV ? 'http://localhost:8000' : '/api')}/${slug}/servicos/`)
     if (res.ok) listaServicos.value = await res.json()
   } catch (e) { console.error(e) }
 }
@@ -372,7 +372,7 @@ const fetchServicos = async () => {
 const salvarServico = async () => {
   if (!novoServico.value.nome) return
   try {
-    await fetch(`${import.meta.env.VITE_API_URL}/${slug}/servicos/`, {
+    await fetch(`${(import.meta.env.DEV ? 'http://localhost:8000' : '/api')}/${slug}/servicos/`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(novoServico.value)
@@ -384,7 +384,7 @@ const salvarServico = async () => {
 
 const deletarServico = async (id: number) => {
   try {
-    await fetch(`${import.meta.env.VITE_API_URL}/${slug}/servicos/${id}`, { method: 'DELETE' })
+    await fetch(`${(import.meta.env.DEV ? 'http://localhost:8000' : '/api')}/${slug}/servicos/${id}`, { method: 'DELETE' })
     fetchServicos()
   } catch (e) { console.error(e) }
 }
@@ -408,7 +408,7 @@ const inicializarWebSocket = () => {
   const userId = authStore.userId
   if (!userId) return
 
-  let wsUrl = import.meta.env.VITE_API_URL.replace('http', 'ws').replace('https', 'wss')
+  let wsUrl = (import.meta.env.DEV ? 'http://localhost:8000' : '/api').replace('http', 'ws').replace('https', 'wss')
   if (wsUrl.startsWith('/')) {
      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
      wsUrl = `${protocol}//${window.location.host}${wsUrl}`
@@ -445,7 +445,7 @@ const fetchBloqueios = async () => {
     const userId = authStore.userId 
     if (!userId) return
 
-    const res = await fetch(`${import.meta.env.VITE_API_URL}/${slug}/bloqueios/barbeiro/${userId}`)
+    const res = await fetch(`${(import.meta.env.DEV ? 'http://localhost:8000' : '/api')}/${slug}/bloqueios/barbeiro/${userId}`)
     if (res.ok) {
       const data = await res.json()
       const agora = new Date()
@@ -460,7 +460,7 @@ const fetchBloqueios = async () => {
 // FUNÇÃO PARA REMOVER A PAUSA/BLOQUEIO
 const removerBloqueio = async (id: number) => {
   try {
-    const res = await fetch(`${import.meta.env.VITE_API_URL}/${slug}/bloqueios/${id}`, { method: 'DELETE' })
+    const res = await fetch(`${(import.meta.env.DEV ? 'http://localhost:8000' : '/api')}/${slug}/bloqueios/${id}`, { method: 'DELETE' })
     if (res.ok) {
       // Atualiza a lista de bloqueios após apagar com sucesso
       fetchBloqueios()
@@ -479,7 +479,7 @@ const salvarBloqueio = async () => {
       motivo: novoBloqueio.value.motivo
     }
     
-    await fetch(`${import.meta.env.VITE_API_URL}/${slug}/bloqueios/`, {
+    await fetch(`${(import.meta.env.DEV ? 'http://localhost:8000' : '/api')}/${slug}/bloqueios/`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
@@ -495,7 +495,7 @@ const salvarBloqueio = async () => {
 // FUNÇÕES DE PRODUTOS
 const fetchProdutos = async () => {
   try {
-    const res = await fetch(`${import.meta.env.VITE_API_URL}/${slug}/produtos/`)
+    const res = await fetch(`${(import.meta.env.DEV ? 'http://localhost:8000' : '/api')}/${slug}/produtos/`)
     if (res.ok) produtos.value = await res.json()
   } catch (e) { console.error(e) }
 }
@@ -508,7 +508,7 @@ const salvarProduto = async () => {
       const formData = new FormData()
       formData.append('file', imagemUpload.value)
       
-      const uploadRes = await fetch(`${import.meta.env.VITE_API_URL}/upload/imagem`, {
+      const uploadRes = await fetch(`${(import.meta.env.DEV ? 'http://localhost:8000' : '/api')}/upload/imagem`, {
         method: 'POST',
         body: formData
       })
@@ -520,7 +520,7 @@ const salvarProduto = async () => {
     }
 
     // 2. Grava o produto no banco de dados da loja
-    await fetch(`${import.meta.env.VITE_API_URL}/${slug}/produtos/`, {
+    await fetch(`${(import.meta.env.DEV ? 'http://localhost:8000' : '/api')}/${slug}/produtos/`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(novoProduto.value)
@@ -538,7 +538,7 @@ const salvarProduto = async () => {
 
 const deletarProduto = async (id: number) => {
   try {
-    await fetch(`${import.meta.env.VITE_API_URL}/${slug}/produtos/${id}`, { method: 'DELETE' })
+    await fetch(`${(import.meta.env.DEV ? 'http://localhost:8000' : '/api')}/${slug}/produtos/${id}`, { method: 'DELETE' })
     fetchProdutos()
   } catch (e) { console.error(e) }
 }

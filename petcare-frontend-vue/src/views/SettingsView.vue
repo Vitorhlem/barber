@@ -366,7 +366,7 @@ const novoBarbeiro = ref({ nome: '', email: '', senha: '', telefone: '' })
 const fetchBarbeiros = async () => {
   if (authStore.userType !== 'admin') return
   try {
-    const res = await fetch(`${import.meta.env.VITE_API_URL}/${slug}/barbeiros/`)
+    const res = await fetch(`${(import.meta.env.DEV ? 'http://localhost:8000' : '/api')}/${slug}/barbeiros/`)
     if (res.ok) listaBarbeiros.value = await res.json()
   } catch (e) { console.error(e) }
 }
@@ -378,7 +378,7 @@ const adicionarBarbeiro = async () => {
   }
   loadingBarbeiro.value = true
   try {
-    const res = await fetch(`${import.meta.env.VITE_API_URL}/${slug}/barbeiros/?usuario_logado_id=${authStore.userId}`, {
+    const res = await fetch(`${(import.meta.env.DEV ? 'http://localhost:8000' : '/api')}/${slug}/barbeiros/?usuario_logado_id=${authStore.userId}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -412,7 +412,7 @@ const removerBarbeiro = async (id: number) => {
     ok: { label: 'Sim, remover', color: 'negative', unelevated: true }
   }).onOk(async () => {
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/${slug}/barbeiros/${id}?usuario_logado_id=${authStore.userId}`, {
+      const res = await fetch(`${(import.meta.env.DEV ? 'http://localhost:8000' : '/api')}/${slug}/barbeiros/${id}?usuario_logado_id=${authStore.userId}`, {
         method: 'DELETE'
       })
       if (res.ok) {
@@ -431,7 +431,7 @@ const formatarDataSimples = (dataStr: string) => {
 
 const fetchFolgas = async () => {
   try {
-    const res = await fetch(`${import.meta.env.VITE_API_URL}/${slug}/folgas/barbeiro/${authStore.userId}`)
+    const res = await fetch(`${(import.meta.env.DEV ? 'http://localhost:8000' : '/api')}/${slug}/folgas/barbeiro/${authStore.userId}`)
     if (res.ok) {
       listaFolgas.value = await res.json()
     }
@@ -448,7 +448,7 @@ const adicionarFolga = async () => {
       data: novaFolga.value.data,
       motivo: novaFolga.value.motivo
     }
-    const res = await fetch(`${import.meta.env.VITE_API_URL}/${slug}/folgas/`, {
+    const res = await fetch(`${(import.meta.env.DEV ? 'http://localhost:8000' : '/api')}/${slug}/folgas/`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
@@ -463,7 +463,7 @@ const adicionarFolga = async () => {
 
 const removerFolga = async (id: number) => {
   try {
-    const res = await fetch(`${import.meta.env.VITE_API_URL}/${slug}/folgas/${id}`, { method: 'DELETE' })
+    const res = await fetch(`${(import.meta.env.DEV ? 'http://localhost:8000' : '/api')}/${slug}/folgas/${id}`, { method: 'DELETE' })
     if (res.ok) {
       fetchFolgas()
       $q.notify({ type: 'positive', message: 'Bloqueio de dia removido!' })
@@ -487,7 +487,7 @@ const opcoesIntervalo = [
 ]
 
 const iniciarAuthGoogle = async () => {
-  const response = await fetch(`${import.meta.env.VITE_API_URL}/${slug}/auth/google/login?user_id=${authStore.userId}`)
+  const response = await fetch(`${(import.meta.env.DEV ? 'http://localhost:8000' : '/api')}/${slug}/auth/google/login?user_id=${authStore.userId}`)
   const data = await response.json()
   if (data.url) {
     window.location.href = data.url
@@ -497,7 +497,7 @@ const iniciarAuthGoogle = async () => {
 const fetchConfiguracao = async () => {
   if (authStore.userType === 'cliente') return
   try {
-    const response = await fetch(`${import.meta.env.VITE_API_URL}/${slug}/configuracao/${authStore.userId}`)
+    const response = await fetch(`${(import.meta.env.DEV ? 'http://localhost:8000' : '/api')}/${slug}/configuracao/${authStore.userId}`)
     if (response.ok) {
       const data = await response.json()
       config.value.intervalo_minutos = data.intervalo_minutos
@@ -516,7 +516,7 @@ const salvarMarca = async () => {
       const formData = new FormData()
       formData.append('file', logoUpload.value)
       
-      const uploadRes = await fetch(`${import.meta.env.VITE_API_URL}/upload/imagem`, {
+      const uploadRes = await fetch(`${(import.meta.env.DEV ? 'http://localhost:8000' : '/api')}/upload/imagem`, {
         method: 'POST',
         body: formData
       })
@@ -527,7 +527,7 @@ const salvarMarca = async () => {
       }
     }
 
-    await fetch(`${import.meta.env.VITE_API_URL}/${slug}/sistema/config`, {
+    await fetch(`${(import.meta.env.DEV ? 'http://localhost:8000' : '/api')}/${slug}/sistema/config`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(configSistema.value)
@@ -552,7 +552,7 @@ const salvarConfiguracao = async () => {
       loja_aberta: config.value.loja_aberta
     }
     
-    const response = await fetch(`${import.meta.env.VITE_API_URL}/${slug}/configuracao/${authStore.userId}`, {
+    const response = await fetch(`${(import.meta.env.DEV ? 'http://localhost:8000' : '/api')}/${slug}/configuracao/${authStore.userId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
@@ -584,7 +584,7 @@ async function handleAlterarSenha() {
 
   loadingSenha.value = true
   try {
-    const response = await fetch(`${import.meta.env.VITE_API_URL}/${slug}/usuarios/${authStore.userId}/alterar-senha`, {
+    const response = await fetch(`${(import.meta.env.DEV ? 'http://localhost:8000' : '/api')}/${slug}/usuarios/${authStore.userId}/alterar-senha`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -625,7 +625,7 @@ function confirmarAlteracaoSlug() {
 async function handleAlterarSlug() {
   loadingSlug.value = true
   try {
-    const response = await fetch(`${import.meta.env.VITE_API_URL}/${slug}/sistema/alterar-slug?usuario_logado_id=${authStore.userId}`, {
+    const response = await fetch(`${(import.meta.env.DEV ? 'http://localhost:8000' : '/api')}/${slug}/sistema/alterar-slug?usuario_logado_id=${authStore.userId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ novo_slug: novoSlug.value })

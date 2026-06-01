@@ -273,10 +273,10 @@ const formatarPreco = (valor: number) => new Intl.NumberFormat('pt-PT', { style:
 onMounted(async () => {
   const slug = route.params.slug as string
   try {
-    const response = await fetch(`${import.meta.env.VITE_API_URL}/${slug}/barbeiros/`)
+    const response = await fetch(`${(import.meta.env.DEV ? 'http://localhost:8000' : '/api')}/${slug}/barbeiros/`)
     if (response.ok) listaBarbeiros.value = await response.json()
 
-    const resServicos = await fetch(`${import.meta.env.VITE_API_URL}/${slug}/servicos/`)
+    const resServicos = await fetch(`${(import.meta.env.DEV ? 'http://localhost:8000' : '/api')}/${slug}/servicos/`)
     if (resServicos.ok) listaServicosBD.value = await resServicos.json()
     
   } catch (error) {
@@ -301,10 +301,10 @@ watch([() => form.value.barbeiro_id, dataSelecionada], async ([novoProfissionalI
   
   try {
     const [resAgendamentos, resBloqueios, resConfig, resFolgas] = await Promise.all([
-      fetch(`${import.meta.env.VITE_API_URL}/${slug}/agendamentos/barbeiro/${idReal}`),
-      fetch(`${import.meta.env.VITE_API_URL}/${slug}/bloqueios/barbeiro/${idReal}`),
-      fetch(`${import.meta.env.VITE_API_URL}/${slug}/configuracao/${idReal}`),
-      fetch(`${import.meta.env.VITE_API_URL}/${slug}/folgas/barbeiro/${idReal}`) 
+      fetch(`${(import.meta.env.DEV ? 'http://localhost:8000' : '/api')}/${slug}/agendamentos/barbeiro/${idReal}`),
+      fetch(`${(import.meta.env.DEV ? 'http://localhost:8000' : '/api')}/${slug}/bloqueios/barbeiro/${idReal}`),
+      fetch(`${(import.meta.env.DEV ? 'http://localhost:8000' : '/api')}/${slug}/configuracao/${idReal}`),
+      fetch(`${(import.meta.env.DEV ? 'http://localhost:8000' : '/api')}/${slug}/folgas/barbeiro/${idReal}`) 
     ])
     
     if (resFolgas.ok) {
@@ -366,7 +366,7 @@ const submeterAgendamento = async () => {
       data_hora: `${dataSelecionada.value}T${horaSelecionada.value}:00`
     }
     
-    const response = await fetch(`${import.meta.env.VITE_API_URL}/${slug}/usuarios/${authStore.userId}/agendamentos/`, {
+    const response = await fetch(`${(import.meta.env.DEV ? 'http://localhost:8000' : '/api')}/${slug}/usuarios/${authStore.userId}/agendamentos/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(dados)

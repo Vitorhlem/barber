@@ -108,7 +108,7 @@ const criarLoja = async () => {
       admin_senha: form.value.admin_senha
     })
 
-    const response = await fetch(`${import.meta.env.VITE_API_URL}/admin/barbearias/?${params.toString()}`, {
+    const response = await fetch(`${(import.meta.env.DEV ? 'http://localhost:8000' : '/api')}/admin/barbearias/?${params.toString()}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' }
     })

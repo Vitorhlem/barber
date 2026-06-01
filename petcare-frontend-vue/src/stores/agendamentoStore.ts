@@ -30,7 +30,7 @@ export const useAgendamentoStore = defineStore('agendamentos', () => {
   const unreadCount = ref(0)
   const hasNewNotification = ref(false)
   
-  const apiUrl = import.meta.env.VITE_API_URL
+  const apiUrl = (import.meta.env.DEV ? 'http://localhost:8000' : '/api')
 
   let socket: WebSocket | null = null
   const carregando = ref(false)

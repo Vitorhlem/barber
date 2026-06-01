@@ -127,7 +127,7 @@ const efetuarRegisto = async () => {
   
   try {
     // API atualizada para apontar para a barbearia correta
-    const response = await fetch(`${import.meta.env.VITE_API_URL}/${slug}/usuarios/`, {
+    const response = await fetch(`${(import.meta.env.DEV ? 'http://localhost:8000' : '/api')}/${slug}/usuarios/`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(formRegisto.value)

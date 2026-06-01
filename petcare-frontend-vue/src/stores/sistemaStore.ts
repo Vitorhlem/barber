@@ -9,7 +9,7 @@ export const useSistemaStore = defineStore('sistema', () => {
     if (!slug) return; 
     
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/${slug}/sistema/config`)
+      const res = await fetch(`${(import.meta.env.DEV ? 'http://localhost:8000' : '/api')}/${slug}/sistema/config`)
       
       if (res.ok) {
         const data = await res.json()
